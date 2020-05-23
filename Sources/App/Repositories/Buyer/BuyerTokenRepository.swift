@@ -21,7 +21,7 @@ struct DatabaseBuyerTokenRepository: BuyerTokenRepository {
     func find(value: String) -> EventLoopFuture<BuyerToken?> {
         return BuyerToken
             .query(on: self.db)
-            .filter(\.$refreshToken == value)
+            .filter(\.$value == value)
             .first()
     }
 

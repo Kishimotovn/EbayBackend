@@ -24,6 +24,9 @@ final class BuyerToken: Model, Content {
     @Parent(key: "buyer_id")
     var buyer: Buyer
 
+    @Timestamp(key: "created_at", on: .create)
+    var createdAt: Date?
+
     init() { }
 
     init(id: UUID? = nil,

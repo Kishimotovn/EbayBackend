@@ -13,6 +13,7 @@ struct CreateBuyerTokens: Migration {
         return database.schema("buyer_tokens")
             .id()
             .field("value", .string, .required)
+            .field("created_at", .datetime)
             .field("expired_at", .datetime, .required)
             .field("buyer_id", .uuid, .required, .references("buyers", "id"))
             .unique(on: "value")

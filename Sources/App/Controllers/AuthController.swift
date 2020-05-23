@@ -51,7 +51,7 @@ struct AuthController: RouteCollection {
                     let accessToken = try request.jwt.sign(payload)
                     
                     let newTokens = BuyerTokensOutput(
-                        refreshToken: token.refreshToken,
+                        refreshToken: token.value,
                         accessToken: accessToken,
                         expiredAt: payload.exp.value)
 
@@ -82,7 +82,7 @@ struct AuthController: RouteCollection {
             .save(token: refreshToken)
             .map {
                 let tokens = BuyerTokensOutput(
-                    refreshToken: refreshToken.refreshToken,
+                    refreshToken: refreshToken.value,
                     accessToken: accessToken,
                     expiredAt: payload.exp.value)
 

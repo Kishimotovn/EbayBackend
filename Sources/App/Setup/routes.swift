@@ -10,5 +10,8 @@ func routes(_ app: Application) throws {
         return "Hello, world!"
     }
 
-    try app.register(collection: AuthController())
+    let apiRoutes = app.grouped("api")
+    let versionedRoutes = apiRoutes.grouped("v1")
+
+    try versionedRoutes.register(collection: AuthController())
 }

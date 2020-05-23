@@ -8,6 +8,9 @@ struct CreateBuyers: Migration {
             .field("password_hash", .string, .required)
             .field("email", .string, .required)
             .field("phoneNumber", .string, .required)
+            .field("created_at", .datetime)
+            .field("updated_at", .datetime)
+            .field("deleted_at", .datetime)
             .unique(on: "username")
             .create()
     }
