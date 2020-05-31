@@ -29,6 +29,12 @@ final class Buyer: Model, Content {
     @Timestamp(key: "deleted_at", on: .delete)
     var deletedAt: Date?
 
+    @Siblings(through: BuyerWarehouseAddress.self, from: \.$buyer, to: \.$warehouse)
+    var warehouseAddresses: [WarehouseAddress]
+
+    @Children(for: \.$buyer)
+    var buyerWarehouseAddresses: [BuyerWarehouseAddress]
+
     init() { }
 
     init(id: UUID? = nil,

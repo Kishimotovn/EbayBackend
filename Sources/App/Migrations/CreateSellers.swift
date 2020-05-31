@@ -1,21 +1,26 @@
+//
+//  File.swift
+//  
+//
+//  Created by Phan Tran on 24/05/2020.
+//
+
+import Foundation
 import Fluent
 
-struct CreateBuyers: Migration {
+struct CreateSellers: Migration {
     func prepare(on database: Database) -> EventLoopFuture<Void> {
-        return database.schema(Buyer.schema)
+        return database.schema(Seller.schema)
             .id()
-            .field("username", .string, .required)
+            .field("name", .string, .required)
             .field("password_hash", .string, .required)
-            .field("email", .string, .required)
-            .field("phoneNumber", .string, .required)
             .field("created_at", .datetime)
             .field("updated_at", .datetime)
             .field("deleted_at", .datetime)
-            .unique(on: "username")
             .create()
     }
 
     func revert(on database: Database) -> EventLoopFuture<Void> {
-        return database.schema(Buyer.schema).delete()
+        return database.schema(Seller.schema).delete()
     }
 }

@@ -18,4 +18,7 @@ public func configure(_ app: Application) throws {
 
     // run migrations
     try migrate(app: app)
+
+    // lifeCycleHandlers
+    try lifecycleHandlers(app: app)
 }

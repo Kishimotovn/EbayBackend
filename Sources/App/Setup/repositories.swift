@@ -16,6 +16,42 @@ public func setupRepositories(app: Application) throws {
     app.buyerTokens.use { req in
         return DatabaseBuyerTokenRepository(db: req.db)
     }
+    app.items.use { req in
+        return DatabaseItemRepository(db: req.db)
+    }
+    app.orders.use { req in
+        return DatabaseOrderRepository(db: req.db)
+    }
+    app.orderItems.use { req in
+        return DatabaseOrderItemRepository(db: req.db)
+    }
+    app.sellers.use { req in
+        return DatabaseSellerRepository(db: req.db)
+    }
+    app.warehouseAddresses.use { req in
+        return DatabaseWarehouseAddressRepository(db: req.db)
+    }
+    app.buyerWarehouseAddresses.use { req in
+        return DatabaseBuyerWarehouseAddressRepository(db: req.db)
+    }
+    app.orderOptions.use { req in
+        return DatabaseOrderOptionRepository(db: req.db)
+    }
+    app.sellerWarehouseAddresses.use { req in
+        return DatabaseSellerWarehouseAddressRepository(db: req.db)
+    }
+    app.orderItemReceipts.use { req in
+        return DatabaseOrderItemReceiptRepository(db: req.db)
+    }
+    app.sellerAnalytics.use { req in
+        return DatabaseSellerAnalyticsRepository(db: req.db)
+    }
+    app.ebayAPIs.use { req in
+        return ClientEbayAPIRepository(client: req.client,
+                                       ebayAppID: req.application.ebayAppID ?? "")
+    }
 
     app.jwt.signers.use(JWTSigner.hs256(key: [UInt8]("Kishimotovn".utf8)))
+    
+    app.ebayAppID = Environment.process.EBAY_APP_ID
 }
