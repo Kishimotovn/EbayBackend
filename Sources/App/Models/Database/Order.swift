@@ -15,6 +15,9 @@ final class Order: Model, Content {
     @ID(key: .id)
     var id: UUID?
 
+    @Field(key: "order_index")
+    var orderIndex: Int
+
     @Parent(key: "buyer_id")
     var buyer: Buyer
 
@@ -63,6 +66,7 @@ final class Order: Model, Content {
 
     init(id: UUID? = nil, state: State = .cart, buyerID: Buyer.IDValue) {
         self.id = id
+        self.orderIndex = -1
         self.state = state
         self.$buyer.id = buyerID
     }

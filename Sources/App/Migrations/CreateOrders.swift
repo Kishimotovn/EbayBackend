@@ -12,6 +12,7 @@ struct CreateOrders: Migration {
     func prepare(on database: Database) -> EventLoopFuture<Void> {
         return database.schema(Order.schema)
             .id()
+            .field("order_index", .uint32, .required)
             .field("buyer_id", .uuid, .required, .references(Buyer.schema, "id"))
             .field("seller_id", .uuid, .references(Seller.schema, "id"))
             .field("warehouse_address_id", .uuid, .references(WarehouseAddress.schema, "id"))

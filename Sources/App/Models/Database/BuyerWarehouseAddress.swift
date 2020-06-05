@@ -6,9 +6,10 @@
 //
 
 import Foundation
+import Vapor
 import Fluent
 
-final class BuyerWarehouseAddress: Model {
+final class BuyerWarehouseAddress: Model, Content {
     static let schema: String = "buyer_warehouse_addresses"
 
     @ID(key: .id)

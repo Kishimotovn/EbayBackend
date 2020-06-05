@@ -80,7 +80,7 @@ struct EbayAPIGetSingleItemResponse: Content {
             var ShippingServiceCost: Price?
         }
         struct DiscountPriceInfo: Content {
-            var OriginalRetailPrice: Price
+            var OriginalRetailPrice: Price?
         }
 
         var Description: String?

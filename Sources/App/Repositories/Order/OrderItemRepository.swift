@@ -12,6 +12,7 @@ import Fluent
 protocol OrderItemRepository {
     func find(itemID: Item.IDValue, orderID: Order.IDValue) -> EventLoopFuture<OrderItem?>
     func save(orderItem: OrderItem) -> EventLoopFuture<Void>
+    func delete(orderItem: OrderItem) -> EventLoopFuture<Void>
     func find(orderID: Order.IDValue,
               orderItemID: OrderItem.IDValue) -> EventLoopFuture<OrderItem?>
 }
@@ -28,6 +29,10 @@ struct DatabaseOrderItemRepository: OrderItemRepository {
 
     func save(orderItem: OrderItem) -> EventLoopFuture<Void> {
         return orderItem.save(on: self.db)
+    }
+
+    func delete(orderItem: OrderItem) -> EventLoopFuture<Void> {
+        return orderItem.delete(on: self.db)
     }
 
     func find(itemID: Item.IDValue, orderID: Order.IDValue) -> EventLoopFuture<OrderItem?> {

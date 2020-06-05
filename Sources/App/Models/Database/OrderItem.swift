@@ -6,9 +6,10 @@
 //
 
 import Foundation
+import Vapor
 import Fluent
 
-final class OrderItem: Model {
+final class OrderItem: Model, Content {
     static let parameter = "order_item_id"
     static let schema: String = "order_item"
 

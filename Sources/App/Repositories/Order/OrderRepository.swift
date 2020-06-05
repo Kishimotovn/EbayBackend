@@ -33,7 +33,16 @@ struct DatabaseOrderRepository: OrderRepository {
     }
 
     func save(order: Order) -> EventLoopFuture<Void> {
-        return order.save(on: self.db)
+        if order.id != nil {
+            return order.save(on: self.db)
+        } else {
+            return Order.query(on: self.db)
+                .count()
+                .flatMap { count in
+                    order.orderIndex = count + 1
+                    return order.save(on: self.db)
+            }
+        }
     }
 
     func getActiveOrders(sellerID: Seller.IDValue,
@@ -69,6 +78,13 @@ struct DatabaseOrderRepository: OrderRepository {
         return Order.query(on: self.db)
             .filter(\.$buyer.$id == buyerID)
             .filter(\.$state ~~ [.registered, .inProgress, .waitingForTracking])
+            .sort(\.$orderRegisteredAt, .descending)
+            .with(\.$orderItems) {
+                $0.with(\.$item)
+                $0.with(\.$receipts)
+            }
+            .with(\.$orderOption)
+            .with(\.$warehouseAddress)
             .paginate(pageRequest)
     }
 
