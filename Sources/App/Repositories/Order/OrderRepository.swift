@@ -52,7 +52,10 @@ struct DatabaseOrderRepository: OrderRepository {
             .filter(\.$state ~~ [.registered, .inProgress])
             .with(\.$orderItems) {
                 $0.with(\.$item)
+                $0.with(\.$receipts)
             }
+            .with(\.$orderOption)
+            .with(\.$warehouseAddress)
             .join(OrderOption.self, on: \Order.$orderOption.$id == \OrderOption.$id)
             .sort(OrderOption.self, \.$rate, .descending)
             .sort(\.$orderRegisteredAt, .ascending)
@@ -64,12 +67,15 @@ struct DatabaseOrderRepository: OrderRepository {
         return Order.query(on: self.db)
             .filter(\.$seller.$id == sellerID)
             .filter(\.$state == .waitingForTracking)
-            .with(\.$orderItems) {
-                $0.with(\.$item)
-            }
             .join(OrderOption.self, on: \Order.$orderOption.$id == \OrderOption.$id)
             .sort(OrderOption.self, \.$rate, .descending)
             .sort(\.$orderRegisteredAt, .ascending)
+            .with(\.$orderItems) {
+                $0.with(\.$item)
+                $0.with(\.$receipts)
+            }
+            .with(\.$orderOption)
+            .with(\.$warehouseAddress)
             .paginate(pageRequest)
     }
 
