@@ -34,12 +34,13 @@ struct UpdateQuantityJob: ScheduledJob {
                                 return clientEbayRepository.getItemDetails(ebayItemID: item.itemID)
                                     .flatMap { (output: EbayAPIItemOutput) -> EventLoopFuture<(Item, Bool)> in
                                         let isOutOfStock = output.quantityLeft == "0"
+                                        let shouldNotify = !isOutOfStock && item.lastKnownAvailability != true
                                         item.lastKnownAvailability = !isOutOfStock
                                         return itemRepository
                                             .save(item: item)
-                                        .transform(to: (item, isOutOfStock))
-                                    }.tryFlatMap { item, isOutOfStock in
-                                        if !isOutOfStock {
+                                        .transform(to: (item, shouldNotify))
+                                    }.tryFlatMap { item, shouldNotify in
+                                        if shouldNotify {
                                             let emailRepository = SendGridEmailRepositoryRepository(
                                                 appFrontendURL: context.application.appFrontendURL ?? "",
                                                 client: context.application.sendgrid.client,

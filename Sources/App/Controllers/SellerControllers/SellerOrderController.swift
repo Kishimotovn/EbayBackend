@@ -8,7 +8,6 @@
 import Foundation
 import Vapor
 import Fluent
-import FileProvider
 
 struct SellerOrderController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
