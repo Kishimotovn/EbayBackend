@@ -9,7 +9,6 @@ import Foundation
 import Vapor
 
 struct UpdateOrderItemReceiptInput: Content {
-    var imageURL: String
-    var trackingNumber: String?
     var resolvedQuantity: Int
+    var trackingNumber: String?
 }

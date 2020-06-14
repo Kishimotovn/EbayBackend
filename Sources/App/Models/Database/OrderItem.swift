@@ -28,6 +28,12 @@ final class OrderItem: Model, Content {
     @Field(key: "quantity")
     var quantity: Int
 
+    @Field(key: "is_processed")
+    var isProcessed: Bool
+
+    @OptionalField(key: "further_discount_amount")
+    var furtherDiscountAmount: Int?
+
     @Children(for: \.$orderItem)
     var receipts: [OrderItemReceipt]
 
@@ -36,14 +42,20 @@ final class OrderItem: Model, Content {
 
     @Timestamp(key: "updated_at", on: .update)
     var updatedAt: Date?
-    
+
+    @OptionalField(key: "item_end_date")
+    var itemEndDate: Date?
+
     init() {}
 
-    init(orderID: Order.IDValue, itemID: Item.IDValue, index: Int, quantity: Int) {
+    init(orderID: Order.IDValue, itemID: Item.IDValue, index: Int, quantity: Int, itemEndDate: Date? = nil, furtherDiscountAmount: Int? = nil, isProcessed: Bool = false) {
         self.$order.id = orderID
         self.$item.id = itemID
         self.index = index
         self.quantity = quantity
+        self.itemEndDate = itemEndDate
+        self.furtherDiscountAmount = furtherDiscountAmount
+        self.isProcessed = isProcessed
     }
 }
 

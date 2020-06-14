@@ -8,6 +8,7 @@
 import Foundation
 import Vapor
 import JWT
+import SendGrid
 
 public func setupRepositories(app: Application) throws {
     app.buyers.use { req in
@@ -48,10 +49,20 @@ public func setupRepositories(app: Application) throws {
     }
     app.ebayAPIs.use { req in
         return ClientEbayAPIRepository(client: req.client,
-                                       ebayAppID: req.application.ebayAppID ?? "")
+                                       ebayAppID: req.application.ebayAppID ?? "",
+                                       ebayAppSecret: req.application.ebayAppSecret ?? "")
     }
-
+    app.sellerItemSubscriptions.use { req in
+        return DatabaseSellerItemSubscriptionRepository(db: req.db)
+    }
+    app.jobMonitorings.use { req in
+        return DatabaseJobMonitoringRepository(db: req.db)
+    }
     app.jwt.signers.use(JWTSigner.hs256(key: [UInt8]("Kishimotovn".utf8)))
-    
+
     app.ebayAppID = Environment.process.EBAY_APP_ID
+    app.ebayAppSecret = Environment.process.EBAY_APP_SECRET
+    app.appFrontendURL = Environment.process.FRONTEND_URL
+    
+    app.sendgrid.initialize()
 }

@@ -9,5 +9,6 @@ import Foundation
 import Vapor
 
 struct UpdateCartOrderItemInput: Content {
-    var quantity: Int
+    var quantity: Int?
+    var furtherDiscountAmount: Int?
 }

@@ -29,7 +29,7 @@ extension CreateBuyerInput: Validatable {
     static func validations(_ validations: inout Validations) {
         validations.add("username", as: String.self, is: !.empty)
         validations.add("email", as: String.self, is: .email)
-        validations.add("password", as: String.self, is: .count(8...))
+        validations.add("password", as: String.self, is: .count(1...))
         validations.add("confirmPassword", as: String.self, is: .count(8...))
         validations.add("phoneNumber", as: String.self, is: !.empty)
     }

@@ -1,6 +1,7 @@
 import Fluent
 import FluentPostgresDriver
 import Vapor
+import RedisKit
 
 // configures your application
 public func configure(_ app: Application) throws {
@@ -12,6 +13,9 @@ public func configure(_ app: Application) throws {
 
     // configure middlewares
     try middlewares(app: app)
+
+    try redis(app: app)
+    try jobs(app: app)
 
     // configure databases
     try databases(app: app)

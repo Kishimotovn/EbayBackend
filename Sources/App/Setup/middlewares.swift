@@ -17,5 +17,7 @@ public func middlewares(app: Application) throws {
     let corsMiddleware = CORSMiddleware(configuration: corsConfiguration)
     app.middleware.use(corsMiddleware)
     app.middleware.use(ErrorMiddleware.default(environment: app.environment))
-    
+
+    let fileMiddleware = FileMiddleware(publicDirectory: app.directory.publicDirectory)
+    app.middleware.use(fileMiddleware)    
 }

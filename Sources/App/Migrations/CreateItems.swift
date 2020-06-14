@@ -16,6 +16,7 @@ struct CreateItems: Migration {
             .field("image_url", .string)
             .field("name", .string)
             .field("condition", .string)
+            .field("item_url", .string)
             .field("shipping_price", .int, .required)
             .field("original_price", .int, .required)
             .field("seller_name", .string)
@@ -23,6 +24,7 @@ struct CreateItems: Migration {
             .field("seller_score", .double)
             .field("created_at", .datetime)
             .field("updated_at", .datetime)
+            .field("last_known_availability", .bool)
             .create()
     }
 

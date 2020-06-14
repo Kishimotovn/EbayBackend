@@ -24,4 +24,6 @@ public func migrate(app: Application) throws {
     app.migrations.add(CreateOrderItemReceipts())
     app.migrations.add(CreateMasterSeller())
     app.migrations.add(CreateDefaultOrderOptions())
+    app.migrations.add(CreateSellerItemSubscriptions())
+    app.migrations.add(CreateJobMonitorings())
 }

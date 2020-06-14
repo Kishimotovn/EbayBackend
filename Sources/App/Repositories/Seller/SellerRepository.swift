@@ -11,6 +11,7 @@ import Fluent
 
 protocol SellerRepository {
     func find(id: Seller.IDValue) -> EventLoopFuture<Seller?>
+    func save(seller: Seller) -> EventLoopFuture<Void>
 }
 
 struct DatabaseSellerRepository: SellerRepository {
@@ -18,6 +19,10 @@ struct DatabaseSellerRepository: SellerRepository {
 
     func find(id: Seller.IDValue) -> EventLoopFuture<Seller?> {
         return Seller.find(id, on: self.db)
+    }
+
+    func save(seller: Seller) -> EventLoopFuture<Void> {
+        return seller.save(on: self.db)
     }
 }
 

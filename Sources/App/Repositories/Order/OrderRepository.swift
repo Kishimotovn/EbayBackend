@@ -10,6 +10,7 @@ import Vapor
 import Fluent
 
 protocol OrderRepository {
+    func find(orderID: Order.IDValue) -> EventLoopFuture<Order?>
     func save(order: Order) -> EventLoopFuture<Void>
     func getCartOrder(of buyerID: Buyer.IDValue) -> EventLoopFuture<Order?>
     func getActiveOrders(buyerID: Buyer.IDValue, pageRequest: PageRequest) -> EventLoopFuture<Page<Order>>
@@ -17,10 +18,15 @@ protocol OrderRepository {
     func getActiveOrders(sellerID: Seller.IDValue, pageRequest: PageRequest) -> EventLoopFuture<Page<Order>>
     func getCurrentActiveOrder(sellerID: Seller.IDValue) -> EventLoopFuture<Order?>
     func getWaitingForTrackingOrders(sellerID: Seller.IDValue, pageRequest: PageRequest) -> EventLoopFuture<Page<Order>>
+    func getOrder(orderID: Order.IDValue, for sellerID: Seller.IDValue) -> EventLoopFuture<Order?>
 }
 
 struct DatabaseOrderRepository: OrderRepository {
     let db: Database
+
+    func find(orderID: Order.IDValue) -> EventLoopFuture<Order?> {
+        return Order.find(orderID, on: self.db)
+    }
 
     func getCartOrder(of buyerID: Buyer.IDValue) -> EventLoopFuture<Order?> {
         return Order.query(on: self.db)
@@ -98,16 +104,37 @@ struct DatabaseOrderRepository: OrderRepository {
         return Order.query(on: self.db)
             .filter(\.$buyer.$id == buyerID)
             .filter(\.$state ~~ [.delivered, .failed, .stuck])
+            .sort(\.$updatedAt, .descending)
+            .with(\.$orderItems) {
+                $0.with(\.$item)
+                $0.with(\.$receipts)
+            }
+            .with(\.$orderOption)
+            .with(\.$warehouseAddress)
             .paginate(pageRequest)
     }
 
     func getCurrentActiveOrder(sellerID: Seller.IDValue) -> EventLoopFuture<Order?> {
         return Order.query(on: self.db)
             .filter(\.$seller.$id == sellerID)
-            .filter(\.$state ~~ [.registered, .inProgress, .waitingForTracking])
+            .filter(\.$state == .inProgress)
             .join(OrderOption.self, on: \Order.$orderOption.$id == \OrderOption.$id)
             .sort(OrderOption.self, \.$rate, .descending)
             .sort(\.$orderRegisteredAt, .ascending)
+            .first()
+    }
+
+    func getOrder(orderID: Order.IDValue, for sellerID: Seller.IDValue) -> EventLoopFuture<Order?> {
+        return Order.query(on: self.db)
+            .filter(\.$id == orderID)
+            .filter(\.$seller.$id == sellerID)
+            .with(\.$orderItems) {
+                $0.with(\.$item)
+                $0.with(\.$receipts)
+            }
+            .with(\.$orderOption)
+            .with(\.$warehouseAddress)
+            .with(\.$buyer)
             .first()
     }
 }

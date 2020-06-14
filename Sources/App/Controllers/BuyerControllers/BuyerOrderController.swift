@@ -175,7 +175,7 @@ struct BuyerOrderController: RouteCollection {
         let buyerID = try buyer.requireID()
         let input = try request.content.decode(UpdateCartOrderItemInput.self)
 
-        guard input.quantity > 0 else {
+        if let quantity = input.quantity, quantity <= 0 {
             throw Abort(.badRequest)
         }
 
@@ -193,7 +193,12 @@ struct BuyerOrderController: RouteCollection {
                     return request.eventLoop.makeFailedFuture(error)
                 }
             }.flatMap { orderItem -> EventLoopFuture<OrderItem> in
-                orderItem.quantity = input.quantity
+                if let newQuantity = input.quantity {
+                    orderItem.quantity = newQuantity
+                }
+                if let newDiscountAmount = input.furtherDiscountAmount {
+                    orderItem.furtherDiscountAmount = newDiscountAmount
+                }
                 return request.orderItems.save(orderItem: orderItem).transform(to: orderItem)
         }.flatMap { orderItem in
             return orderItem.$item
@@ -315,11 +320,28 @@ struct BuyerOrderController: RouteCollection {
                     orderRelevanceInfoFutures.append(cartOrder.$orderOption.load(on: request.db))
                 }
 
+                var itemChanged = false
+                for item in cartOrder.orderItems {
+                    if let endDate = item.itemEndDate, endDate <= Date() {
+                        itemChanged = true
+                        orderRelevanceInfoFutures.append(request.orderItems.delete(orderItem: item))
+                    }
+                }
+
                 return EventLoopFuture.andAllSucceed(
                     orderRelevanceInfoFutures,
                     on: request.eventLoop)
-                .transform(to: cartOrder)
-        }
+                    .tryFlatMap {
+                        if itemChanged {
+                            return try request
+                                       .orders
+                                       .getCartOrder(of: buyer.requireID())
+                                       .unwrap(or: Abort(.notFound))
+                        } else {
+                            return request.eventLoop.makeSucceededFuture(cartOrder)
+                        }
+                    }
+            }
     }
 
     private func rearrangeOrderItemHandler(request: Request) throws -> EventLoopFuture<Order> {
@@ -390,12 +412,14 @@ struct BuyerOrderController: RouteCollection {
             }.flatMap { item -> EventLoopFuture<Item>    in
                 item.name = input.name
                 item.imageURL = input.imageURL
+                item.itemURL = input.itemURL
                 item.shippingPrice = input.shippingPrice
                 item.sellerName = input.sellerName
                 item.sellerFeedbackCount = input.sellerFeedbackCount
                 item.sellerScore = input.sellerScore
                 item.originalPrice = input.originalPrice
                 item.condition = input.condition
+                item.lastKnownAvailability = true
                 return request
                     .items
                     .save(item: item)
@@ -428,6 +452,8 @@ struct BuyerOrderController: RouteCollection {
                 }
             }.flatMap { pivot -> EventLoopFuture<Void> in
                 pivot.quantity += input.quantity
+                pivot.itemEndDate = input.itemEndDate
+                pivot.furtherDiscountAmount = input.furtherDiscountAmount
                 return request
                     .orderItems
                     .save(orderItem: pivot)

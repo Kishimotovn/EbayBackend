@@ -13,7 +13,7 @@ struct SellerUpdateOrderRestrictor: Middleware {
     func respond(to request: Request, chainingTo next: Responder) -> EventLoopFuture<Response> {
         if let orderID = request.parameters.get(Order.parameter, as: Order.IDValue.self) {
             guard let sellerID = request.application.masterSellerID else {
-                return request.eventLoop.makeFailedFuture(Abort(.unauthorized))
+                return request.eventLoop.makeFailedFuture(Abort(.badRequest))
             }
 
             return request

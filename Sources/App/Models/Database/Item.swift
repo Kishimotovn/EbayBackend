@@ -33,6 +33,9 @@ final class Item: Model, Content {
     @Field(key: "original_price")
     var originalPrice: Int
 
+    @Field(key: "item_url")
+    var itemURL: String
+
     @OptionalField(key: "seller_name")
     var sellerName: String?
 
@@ -51,25 +54,34 @@ final class Item: Model, Content {
     @Siblings(through: OrderItem.self, from: \.$item, to: \.$order)
     var orders: [Order]
 
+    @OptionalField(key: "last_known_availability")
+    var lastKnownAvailability: Bool?
+
     init() { }
 
     init(itemID: String,
          imageURL: String? = nil,
          name: String? = nil,
+         itemURL: String = "",
          condition: String? = nil,
          shippingPrice: Int = 0,
          originalPrice: Int = 0,
          sellerName: String? = nil,
          sellerFeedbackCount: Int? = nil,
-         sellerScore: Double? = nil) {
+         sellerScore: Double? = nil,
+         lastKnownAvailability: Bool? = nil) {
         self.itemID = itemID
         self.imageURL = imageURL
         self.name = name
+        self.itemURL = itemURL
         self.condition = condition
         self.shippingPrice = shippingPrice
         self.originalPrice = originalPrice
         self.sellerName = sellerName
         self.sellerFeedbackCount = sellerFeedbackCount
         self.sellerScore = sellerScore
+        self.lastKnownAvailability = lastKnownAvailability
     }
 }
+
+extension Item: Parameter { }

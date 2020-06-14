@@ -20,4 +20,12 @@ extension String {
         let range = NSRange(location: 0, length: count)
         return regex?.stringByReplacingMatches(in: self, options: [], range: range, withTemplate: "$1_$2")
     }
+
+    func currencyValue() -> Decimal? {
+        let numberFormatter = NumberFormatter()
+        numberFormatter.allowsFloats = true
+        numberFormatter.generatesDecimalNumbers = true
+        
+        return numberFormatter.number(from: self)?.decimalValue
+    }
 }

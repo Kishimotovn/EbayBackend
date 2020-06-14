@@ -13,7 +13,10 @@ let package = Package(
         .package(url: "https://github.com/vapor/fluent.git", from: "4.0.0-rc"),
         .package(url: "https://github.com/vapor/fluent-postgres-driver.git", from: "2.0.0-rc"),
         .package(url: "https://github.com/SwifQL/VaporBridges.git", from:"1.0.0-rc"),
-        .package(url: "https://github.com/SwifQL/PostgresBridge.git", from:"1.0.0-rc")
+        .package(url: "https://github.com/SwifQL/PostgresBridge.git", from:"1.0.0-rc"),
+        .package(url: "https://github.com/scinfu/SwiftSoup.git", from: "2.0.0"),
+        .package(url: "https://github.com/vapor/queues-redis-driver.git", from: "1.0.0-rc"),
+        .package(url: "https://github.com/vapor-community/sendgrid.git", from: "4.0.0")
     ],
     targets: [
         .target(
@@ -24,7 +27,10 @@ let package = Package(
                 .product(name: "JWT", package: "jwt"),
                 .product(name: "Vapor", package: "vapor"),
                 .product(name: "VaporBridges", package: "VaporBridges"),
-                .product(name: "PostgresBridge", package: "PostgresBridge")
+                .product(name: "PostgresBridge", package: "PostgresBridge"),
+                .product(name: "SwiftSoup", package: "SwiftSoup"),
+                .product(name: "QueuesRedisDriver", package: "queues-redis-driver"),
+                .product(name: "SendGrid", package: "sendgrid")
             ],
             swiftSettings: [
                 // Enable better optimizations when building in Release configuration. Despite the use of

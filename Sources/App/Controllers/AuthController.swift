@@ -44,7 +44,7 @@ struct AuthController: RouteCollection {
         return request
             .buyerTokens
             .find(value: input.refreshToken)
-            .unwrap(or: Abort(.unauthorized))
+            .unwrap(or: Abort(.badRequest))
             .flatMapThrowing { token -> EventLoopFuture<BuyerTokensOutput> in
                 if token.expiredAt > Date() {
                     let payload = Buyer.AccessTokenPayload(buyerID: token.$buyer.id)

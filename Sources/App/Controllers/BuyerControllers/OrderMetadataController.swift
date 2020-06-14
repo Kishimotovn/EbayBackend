@@ -7,6 +7,7 @@
 
 import Foundation
 import Vapor
+import SwiftSoup
 
 struct OrderMetadataController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {

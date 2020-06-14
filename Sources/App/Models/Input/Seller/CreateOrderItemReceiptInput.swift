@@ -9,7 +9,7 @@ import Foundation
 import Vapor
 
 struct CreateOrderItemReceiptInput: Content {
-    var imageURL: String
+    var image: Data
     var resolvedQuantity: Int
     var trackingNumber: String?
 }

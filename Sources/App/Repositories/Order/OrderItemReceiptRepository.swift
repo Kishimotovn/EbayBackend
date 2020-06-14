@@ -13,6 +13,7 @@ protocol OrderItemReceiptRepository {
     func save(orderItemReceipt: OrderItemReceipt) -> EventLoopFuture<Void>
     func find(id: OrderItemReceipt.IDValue) -> EventLoopFuture<OrderItemReceipt?>
     func find(orderItemID: OrderItem.IDValue, orderItemReceiptID: OrderItemReceipt.IDValue) -> EventLoopFuture<OrderItemReceipt?>
+    func delete(orderItemReceipt: OrderItemReceipt) -> EventLoopFuture<Void>
 }
 
 struct DatabaseOrderItemReceiptRepository: OrderItemReceiptRepository {
@@ -32,6 +33,11 @@ struct DatabaseOrderItemReceiptRepository: OrderItemReceiptRepository {
             .filter(\.$id == orderItemReceiptID)
             .filter(\.$orderItem.$id == orderItemID)
             .first()
+    }
+
+    func delete(orderItemReceipt: OrderItemReceipt) -> EventLoopFuture<Void> {
+        return orderItemReceipt
+            .delete(on: self.db)
     }
 }
 

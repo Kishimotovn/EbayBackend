@@ -36,6 +36,9 @@ final class Seller: Model, Content {
     @Children(for: \.$seller)
     var sellerWarehouseAddresses: [SellerWarehouseAddress]
 
+    @Siblings(through: SellerItemSubscription.self, from: \.$seller, to: \.$item)
+    var subscribedItems: [Item]
+ 
     init() { }
 
     init(name: String,
