@@ -103,6 +103,7 @@ class ClientEbayAPIRepository: EbayAPIRepository {
     }
 
     func getItemDetails(itemID: String) -> EventLoopFuture<EbayAPIItemOutput> {
+        print("hello testing testing")
         return self.refreshTokenToken()
             .flatMap {
                 return self.searchItem(itemID: itemID)

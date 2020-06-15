@@ -34,7 +34,9 @@ struct UpdateQuantityJob: ScheduledJob {
                                 return clientEbayRepository.getItemDetails(ebayItemID: item.itemID)
                                     .flatMap { (output: EbayAPIItemOutput) -> EventLoopFuture<(Item, Bool)> in
                                         let isOutOfStock = output.quantityLeft == "0"
-                                        let shouldNotify = !isOutOfStock && item.lastKnownAvailability != true
+                                        let changedToAvailable = !isOutOfStock && item.lastKnownAvailability != true
+                                        let changedToUnavailable = isOutOfStock && item.lastKnownAvailability != false
+                                        let shouldNotify = changedToUnavailable || changedToAvailable
                                         item.lastKnownAvailability = !isOutOfStock
                                         return itemRepository
                                             .save(item: item)

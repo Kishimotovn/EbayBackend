@@ -31,14 +31,27 @@ struct SendGridEmailRepositoryRepository: EmailRepositoryRepository {
     let eventLoop: EventLoop
 
     func sendItemAvailableEmail(for item: Item) throws -> EventLoopFuture<Void> {
-        let emailContent = """
-            <p>Item <a href="\(item.itemURL)">\(item.name ?? item.itemURL)</a> đã có hàng. Truy cập <a href="\(appFrontendURL)">link</a> để đặt hàng ngay</p>
-          """
+        let isInStock = item.lastKnownAvailability == true
+
+        let emailContent: String
+        let emailTitle: String
+        if isInStock {
+            emailTitle = "Item đã có hàng!"
+            emailContent = """
+              <p>Item <a href="\(item.itemURL)">\(item.name ?? item.itemURL)</a> đã có hàng. Truy cập <a href="\(appFrontendURL)">link</a> để đặt hàng ngay.</p>
+            """
+        } else {
+            emailTitle = "Item đã hết hàng!"
+            emailContent = """
+              <p>Item <a href="\(item.itemURL)">\(item.name ?? item.itemURL)</a> đã hết hàng :(.</p>
+            """
+        }
+        
         let emailAddress = EmailAddress(email: "annavux@gmail.com")
         
         let emailConfig = Personalization(
             to: [emailAddress],
-            subject: "Item đã có hàng!")
+            subject: emailTitle)
 
         let fromEmail = EmailAddress(
             email: "no-reply@1991ebay.com",

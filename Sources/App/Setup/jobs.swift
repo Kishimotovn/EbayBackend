@@ -11,23 +11,11 @@ import QueuesRedisDriver
 import Queues
 
 public func jobs(app: Application) throws {
-    app.queues.schedule(UpdateQuantityJob())
-        .hourly().at(0)
-
-    app.queues.schedule(UpdateQuantityJob())
-        .hourly().at(10)
-
-    app.queues.schedule(UpdateQuantityJob())
-        .hourly().at(20)
-
-    app.queues.schedule(UpdateQuantityJob())
-        .hourly().at(30)
-
-    app.queues.schedule(UpdateQuantityJob())
-        .hourly().at(40)
-
-    app.queues.schedule(UpdateQuantityJob())
-        .hourly().at(50)
+    for i in 0..<12 {
+        let minute = i*5
+        app.queues.schedule(UpdateQuantityJob())
+            .hourly().at(.init(integerLiteral: minute))
+    }
 
     try app.queues.startScheduledJobs()
 }
