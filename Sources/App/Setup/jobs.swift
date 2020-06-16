@@ -16,6 +16,10 @@ public func jobs(app: Application) throws {
         app.queues.schedule(UpdateQuantityJob())
             .hourly().at(.init(integerLiteral: minute))
     }
+    
+    app.queues.schedule(TestJob())
+        .minutely()
+        .at(0)
 
-    try app.queues.startScheduledJobs()
+//    try app.queues.startScheduledJobs()
 }

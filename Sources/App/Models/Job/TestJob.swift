@@ -12,16 +12,8 @@ import Queues
 
 struct TestJob: ScheduledJob {
     func run(context: QueueContext) -> EventLoopFuture<Void> {
-        return Seller.query(on: context.application.db)
-            .first()
-            .flatMap { (seller: Seller?) -> EventLoopFuture<Void> in
-                if let seller = seller {
-                    let sellerRepo = DatabaseSellerRepository(db: context.application.db)
-                    seller.updatedAt = Date()
-                    return sellerRepo.save(seller: seller)
-                } else {
-                    return context.eventLoop.future()
-                }
-        }
+        let jobMonitoringRepository = DatabaseJobMonitoringRepository(db: context.application.db)
+        let jobMonitoring = JobMonitoring(jobName: self.name)
+        return jobMonitoringRepository.save(jobMonitoring: jobMonitoring)
     }
 }
