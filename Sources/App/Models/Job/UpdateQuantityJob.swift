@@ -43,11 +43,30 @@ struct UpdateQuantityJob: ScheduledJob {
                                         .transform(to: (item, shouldNotify))
                                     }.tryFlatMap { item, shouldNotify in
                                         if shouldNotify {
-                                            let emailRepository = SendGridEmailRepositoryRepository(
-                                                appFrontendURL: context.application.appFrontendURL ?? "",
-                                                client: context.application.sendgrid.client,
-                                                eventLoop: context.eventLoop)
-                                            return try emailRepository.sendItemAvailableEmail(for: item)
+                                            let isInStock = item.lastKnownAvailability == true
+                                            let appFrontendURL = context.application.appFrontendURL ?? ""
+
+                                            let emailContent: String
+                                            let emailTitle: String
+                                            if isInStock {
+                                                emailTitle = "Item đã có hàng!"
+                                                emailContent = """
+                                                  <p>Item <a href="\(item.itemURL)">\(item.name ?? item.itemURL)</a> đã có hàng. Truy cập <a href="\(appFrontendURL)">link</a> để đặt hàng ngay.</p>
+                                                """
+                                            } else {
+                                                emailTitle = "Item đã hết hàng!"
+                                                emailContent = """
+                                                  <p>Item <a href="\(item.itemURL)">\(item.name ?? item.itemURL)</a> đã hết hàng :(.</p>
+                                                """
+                                            }
+                                            let emailPayload = EmailJobPayload(destination: "annavux@gmail.com", title: emailTitle, content: emailContent)
+                                            
+                                            return context
+                                                .application
+                                                .queues
+                                                .queue
+                                                .dispatch(EmailJob.self,
+                                                          emailPayload)
                                         } else {
                                             return context.eventLoop.future()
                                         }

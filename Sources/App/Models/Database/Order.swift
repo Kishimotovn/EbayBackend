@@ -50,6 +50,7 @@ final class Order: Model, Content {
 
     enum State: String, Codable {
         case cart
+        case buyerVerificationRequired
         case registered
         case inProgress
         case waitingForTracking

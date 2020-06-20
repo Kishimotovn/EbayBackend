@@ -58,11 +58,20 @@ public func setupRepositories(app: Application) throws {
     app.jobMonitorings.use { req in
         return DatabaseJobMonitoringRepository(db: req.db)
     }
+    app.emails.use { req in
+        return SendGridEmailRepository(appFrontendURL: req.application.appFrontendURL ?? "",
+                                       request: req)
+    }
+    app.buyerResetPasswordTokens.use { req in
+        return DatabaseBuyerResetPasswordTokenRepository(db: req.db)
+    }
     app.jwt.signers.use(JWTSigner.hs256(key: [UInt8]("Kishimotovn".utf8)))
 
     app.ebayAppID = Environment.process.EBAY_APP_ID
     app.ebayAppSecret = Environment.process.EBAY_APP_SECRET
     app.appFrontendURL = Environment.process.FRONTEND_URL
     
-    app.sendgrid.initialize()
+    if (app.environment == .production) {
+        app.sendgrid.initialize()
+    }
 }

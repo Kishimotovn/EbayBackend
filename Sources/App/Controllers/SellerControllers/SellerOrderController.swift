@@ -29,7 +29,6 @@ struct SellerOrderController: RouteCollection {
         groupedRoutes.put(Order.parameterPath, "delivered", use: moveOrderToDelivered)
 
         let validatedRoutes = groupedRoutes.grouped(OrderItemIDValidator())
-        
         validatedRoutes.put(Order.parameterPath, OrderItem.parameterPath, use: updateOrderItemHandler)
         validatedRoutes.on(.POST, Order.parameterPath, OrderItem.parameterPath, "receipts", body: .collect(maxSize: "1mb"), use: createReceiptHandler)
 
@@ -179,8 +178,13 @@ struct SellerOrderController: RouteCollection {
             .unwrap(or: Abort(.notFound))
             .flatMap { order in
                 order.state = state
-                return request.orders.save(order: order).transform(to: order)
-        }
+                return request
+                    .orders
+                    .save(order: order)
+                    .transform(to: order)
+            }.tryFlatMap { order in
+                return try request.emails.sendOrderUpdateEmail(for: order).transform(to: order)
+            }
     }
 
     private func updateOrderItemHandler(request: Request) throws -> EventLoopFuture<OrderItem> {

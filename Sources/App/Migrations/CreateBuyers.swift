@@ -11,7 +11,7 @@ struct CreateBuyers: Migration {
             .field("created_at", .datetime)
             .field("updated_at", .datetime)
             .field("deleted_at", .datetime)
-            .unique(on: "username")
+            .unique(on: "username", "email")
             .create()
     }
 

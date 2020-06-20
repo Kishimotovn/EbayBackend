@@ -26,4 +26,7 @@ public func migrate(app: Application) throws {
     app.migrations.add(CreateDefaultOrderOptions())
     app.migrations.add(CreateSellerItemSubscriptions())
     app.migrations.add(CreateJobMonitorings())
+    app.migrations.add(AddVerifiedAtToBuyer())
+    app.migrations.add(CreateBuyerResetPasswordTokens())
+    app.migrations.add(AddFurtherDiscountDetectedToOrderItem())
 }

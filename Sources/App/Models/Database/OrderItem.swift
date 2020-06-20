@@ -34,6 +34,9 @@ final class OrderItem: Model, Content {
     @OptionalField(key: "further_discount_amount")
     var furtherDiscountAmount: Int?
 
+    @Field(key: "further_discount_detected")
+    var furtherDiscountDetected: Bool
+
     @Children(for: \.$orderItem)
     var receipts: [OrderItemReceipt]
 
@@ -48,7 +51,7 @@ final class OrderItem: Model, Content {
 
     init() {}
 
-    init(orderID: Order.IDValue, itemID: Item.IDValue, index: Int, quantity: Int, itemEndDate: Date? = nil, furtherDiscountAmount: Int? = nil, isProcessed: Bool = false) {
+    init(orderID: Order.IDValue, itemID: Item.IDValue, index: Int, quantity: Int, itemEndDate: Date? = nil, furtherDiscountAmount: Int? = nil, isProcessed: Bool = false, furtherDiscountDetected: Bool = false) {
         self.$order.id = orderID
         self.$item.id = itemID
         self.index = index
@@ -56,6 +59,7 @@ final class OrderItem: Model, Content {
         self.itemEndDate = itemEndDate
         self.furtherDiscountAmount = furtherDiscountAmount
         self.isProcessed = isProcessed
+        self.furtherDiscountDetected = furtherDiscountDetected
     }
 }
 

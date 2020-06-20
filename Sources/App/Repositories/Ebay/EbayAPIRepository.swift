@@ -83,6 +83,7 @@ class ClientEbayAPIRepository: EbayAPIRepository {
             }
 
             return furtherDiscountAmount.map { furtherDiscountAmount in
+                let detected = furtherDiscountAmount != nil && furtherDiscountAmount! > 0
                 return EbayAPIItemOutput(
                     itemID: item.itemId,
                     name: item.title,
@@ -96,14 +97,14 @@ class ClientEbayAPIRepository: EbayAPIRepository {
                     sellerScore: Double(item.seller.feedbackPercentage),
                     itemEndDate: endDate,
                     quantityLeft: quantityLeft,
-                    furtherDiscountAmount: furtherDiscountAmount
+                    furtherDiscountAmount: furtherDiscountAmount,
+                    furtherDiscountDetected: detected
                 )
             }
         }
     }
 
     func getItemDetails(itemID: String) -> EventLoopFuture<EbayAPIItemOutput> {
-        print("hello testing testing")
         return self.refreshTokenToken()
             .flatMap {
                 return self.searchItem(itemID: itemID)
@@ -285,7 +286,7 @@ struct EbaySearchLegacyItemInput: Content {
 struct EbaySearchItemInput: Content {
     var q: String?
     var epid: String?
-    var filter: String = "deliveryCountry:US"
+    var filter: String = "buyingOptions:{FIXED_PRICE},itemLocationCountry:US"
 }
 
 struct EbayItemSearchResponse: Content {

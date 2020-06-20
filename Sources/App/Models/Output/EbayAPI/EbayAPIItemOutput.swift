@@ -22,4 +22,5 @@ struct EbayAPIItemOutput: Content {
     var itemEndDate: Date?
     var quantityLeft: String?
     var furtherDiscountAmount: Int?
+    var furtherDiscountDetected: Bool
 }

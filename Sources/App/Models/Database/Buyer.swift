@@ -29,6 +29,9 @@ final class Buyer: Model, Content {
     @Timestamp(key: "deleted_at", on: .delete)
     var deletedAt: Date?
 
+    @OptionalField(key: "verified_at")
+    var verifiedAt: Date?
+
     @Siblings(through: BuyerWarehouseAddress.self, from: \.$buyer, to: \.$warehouse)
     var warehouseAddresses: [WarehouseAddress]
 
@@ -94,3 +97,5 @@ extension Buyer {
         )
     }
 }
+
+extension Buyer: Parameter { }

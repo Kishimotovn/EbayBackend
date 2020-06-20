@@ -13,13 +13,17 @@ struct BuyerOrderController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
         let groupedRoutes = routes.grouped("buyerOrders")
 
+        groupedRoutes.group(BuyerJWTAuthenticator()) { buyerOrNotRoutes in
+            buyerOrNotRoutes.get("accessibleWarehouseAddresses", use: getAccessibleWarehouseAddressesHandler)
+        }
+
         let buyerProtectedRoutes = groupedRoutes
             .grouped(BuyerJWTAuthenticator())
             .grouped(Buyer.guardMiddleware())
 
         // Ware houses:
-        buyerProtectedRoutes.get("accessibleWarehouseAddresses", use: getAccessibleWarehouseAddressesHandler)
         buyerProtectedRoutes.post("warehouses", use: createWarehouseAddressHandler)
+        buyerProtectedRoutes.post("warehouses", "multiple", use: createWarehouseAddressesHandler)
 
         // Orders:
         buyerProtectedRoutes.get("active", use: getActiveOrdersHandler)
@@ -28,7 +32,8 @@ struct BuyerOrderController: RouteCollection {
         // Cart Orders:
         buyerProtectedRoutes.delete("cart", OrderItem.parameterPath, use: deleteCartOrderItemHandler)
         buyerProtectedRoutes.put("cart", OrderItem.parameterPath, use: updateCartOrderItemHandler)
-        buyerProtectedRoutes.post("addItemToCart", use: addItemToCardHandler)
+        buyerProtectedRoutes.post("addItemToCart", use: addItemToCartHandler)
+        buyerProtectedRoutes.post("addItemsToCart", use: addItemsToCartHandler)
         buyerProtectedRoutes.get("cart", use: getCartOrderHandler)
         buyerProtectedRoutes.put("rearrangeOrderItem", use: rearrangeOrderItemHandler)
         buyerProtectedRoutes.put("updateWarehouseAddress", use: updateWarehouseHandler)
@@ -87,8 +92,48 @@ struct BuyerOrderController: RouteCollection {
         }
     }
 
-    private func getAccessibleWarehouseAddressesHandler(request: Request) throws -> EventLoopFuture<BuyerAccessibleWarehouseAddresses> {
+    private func createWarehouseAddressesHandler(request: Request) throws -> EventLoopFuture<HTTPResponseStatus> {
         let buyer = try request.auth.require(Buyer.self)
+        let input = try request.content.decode(CreateWarehouseAddressesInput.self)
+
+        return input.warehouseAddresses.map { warehouseInput in
+            let warehouseAddress = warehouseInput.warehouseAddress()
+
+            return request
+               .warehouseAddresses
+               .save(warehouseAddress: warehouseAddress)
+               .transform(to: warehouseAddress)
+               .tryFlatMap { warehouseAddress -> EventLoopFuture<Void> in
+                   let buyerWarehouseAddress = try BuyerWarehouseAddress(name: warehouseInput.name,
+                                                                         buyerID: buyer.requireID(),
+                                                                         warehouseID: warehouseAddress.requireID())
+                   return request
+                       .buyerWarehouseAddresses
+                       .save(buyerWarehouseAddress: buyerWarehouseAddress)
+            }
+        }.flatten(on: request.eventLoop)
+        .transform(to: .ok)
+    }
+
+    private func getAccessibleWarehouseAddressesHandler(request: Request) throws -> EventLoopFuture<BuyerAccessibleWarehouseAddresses> {
+        let buyerWarehousesFuture: EventLoopFuture<[BuyerWarehouseAddress]>
+        if let buyer = try? request.auth.require(Buyer.self) {
+            buyerWarehousesFuture = buyer
+                .$buyerWarehouseAddresses
+                .load(on: request.db)
+                .flatMap {
+                    return buyer
+                        .buyerWarehouseAddresses
+                        .map {
+                            return request
+                                .buyerWarehouseAddresses
+                                .find(id: $0.id!)
+                                .unwrap(or: Abort(.notFound))
+                        }.flatten(on: request.eventLoop)
+            }
+        } else {
+            buyerWarehousesFuture = request.eventLoop.makeSucceededFuture([])
+        }
 
         var sellerWarehousesFuture: EventLoopFuture<[SellerWarehouseAddress]> = request.eventLoop.makeSucceededFuture([])
         if let masterSellerID = request.application.masterSellerID {
@@ -114,20 +159,6 @@ struct BuyerOrderController: RouteCollection {
                         return request.eventLoop.makeSucceededFuture([])
                     }
                 }
-        }
-
-        let buyerWarehousesFuture = buyer
-            .$buyerWarehouseAddresses
-            .load(on: request.db)
-            .flatMap {
-                return buyer
-                    .buyerWarehouseAddresses
-                    .map {
-                        return request
-                            .buyerWarehouseAddresses
-                            .find(id: $0.id!)
-                            .unwrap(or: Abort(.notFound))
-                    }.flatten(on: request.eventLoop)
         }
 
         return sellerWarehousesFuture
@@ -215,13 +246,23 @@ struct BuyerOrderController: RouteCollection {
             .getCartOrder(of: buyer.requireID())
             .unwrap(or: Abort(.notFound))
             .flatMap { cartOrder -> EventLoopFuture<Order> in
-                cartOrder.orderRegisteredAt = Date()
-                cartOrder.state = .registered
+                return cartOrder.$buyer.load(on: request.db)
+                    .transform(to: cartOrder)
+            .flatMap { cartOrder -> EventLoopFuture<Order> in
+                if cartOrder.buyer.verifiedAt == nil {
+                    cartOrder.state = .buyerVerificationRequired
+                } else {
+                    cartOrder.orderRegisteredAt = Date()
+                    cartOrder.state = .registered
+                }
 
                 return request
                     .orders
                     .save(order: cartOrder)
                     .transform(to: cartOrder)
+            }.tryFlatMap { order in
+                return try request.emails.sendOrderUpdateEmail(for: order).transform(to: order)
+            }
         }
     }
 
@@ -377,7 +418,99 @@ struct BuyerOrderController: RouteCollection {
             }
     }
 
-    private func addItemToCardHandler(request: Request) throws -> EventLoopFuture<Order> {
+    private func addItemsToCartHandler(request: Request) throws -> EventLoopFuture<Order> {
+        let input = try request.content.decode(AddItemsToCartInput.self)
+        let buyer = try request.auth.require(Buyer.self)
+
+        let cartOrderFuture = try request.orders
+            .getCartOrder(of: buyer.requireID())
+            .flatMapThrowing { cartOrder -> Order in
+                if let existingOrder = cartOrder {
+                    return existingOrder
+                } else {
+                    let newOrder = try Order(buyerID: buyer.requireID())
+                    newOrder.$seller.id = request.application.masterSellerID
+                    return newOrder
+                }
+        }.flatMap { order in
+            return request.orders
+                .save(order: order)
+                .transform(to: order)
+        }.flatMap { order in
+            return order.$orderItems
+                .load(on: request.db)
+                .transform(to: order)
+        }
+
+        let addedItemsFuture = input.items.map { inputItem in
+            return request.items
+            .find(itemID: inputItem.itemID)
+            .map { (item: Item?) -> Item in
+                if let existingItem = item {
+                    return existingItem
+                } else {
+                    return Item(itemID: inputItem.itemID)
+                }
+            }.flatMap { item -> EventLoopFuture<Item>    in
+                item.name = inputItem.name
+                item.imageURL = inputItem.imageURL
+                item.itemURL = inputItem.itemURL
+                item.shippingPrice = inputItem.shippingPrice
+                item.sellerName = inputItem.sellerName
+                item.sellerFeedbackCount = inputItem.sellerFeedbackCount
+                item.sellerScore = inputItem.sellerScore
+                item.originalPrice = inputItem.originalPrice
+                item.condition = inputItem.condition
+                item.lastKnownAvailability = true
+                return request
+                    .items
+                    .save(item: item)
+                    .transform(to: item)
+            }
+        }.flatten(on: request.eventLoop)
+        
+        return cartOrderFuture
+                .and(addedItemsFuture)
+                .tryFlatMap { order, items -> EventLoopFuture<Void> in
+                    return try items.map { item in
+                        return try request
+                            .orderItems
+                            .find(itemID: item.requireID(),
+                                  orderID: order.requireID())
+                            .flatMapThrowing { pivot -> OrderItem in
+                                if let existingPivot = pivot {
+                                    return existingPivot
+                                } else {
+                                    let highestIndex = order.orderItems.sorted { lhs, rhs in
+                                        return lhs.index > rhs.index
+                                        }.first?.index ?? -1
+                                    return try OrderItem(orderID: order.requireID(),
+                                                         itemID: item.requireID(),
+                                                         index: highestIndex + 1,
+                                                         quantity: 0)
+                                }
+                            }.flatMap { pivot -> EventLoopFuture<OrderItem> in
+                                return pivot.$item.load(on: request.db).transform(to: pivot)
+                            }.flatMap { pivot -> EventLoopFuture<Void> in
+                                if let inputItem = input.items.first(where: { return $0.itemID == pivot.item.itemID }) {
+                                    pivot.quantity += inputItem.quantity
+                                    pivot.itemEndDate = inputItem.itemEndDate
+                                    pivot.furtherDiscountAmount = inputItem.furtherDiscountAmount
+                                    pivot.furtherDiscountDetected = inputItem.furtherDiscountDetected
+                                }
+                                return request
+                                    .orderItems
+                                    .save(orderItem: pivot)
+                            }
+                    }.flatten(on: request.eventLoop)
+                }.flatMap { _ -> EventLoopFuture<Order?> in
+                    return request
+                        .orders
+                        .getCartOrder(of: buyer.id!)
+                }.unwrap(or: Abort(.internalServerError))
+    }
+
+    private func addItemToCartHandler(request: Request) throws -> EventLoopFuture<Order> {
         let input = try request.content.decode(AddItemToCartInput.self)
         let buyer = try request.auth.require(Buyer.self)
 
@@ -454,6 +587,7 @@ struct BuyerOrderController: RouteCollection {
                 pivot.quantity += input.quantity
                 pivot.itemEndDate = input.itemEndDate
                 pivot.furtherDiscountAmount = input.furtherDiscountAmount
+                pivot.furtherDiscountDetected = input.furtherDiscountDetected
                 return request
                     .orderItems
                     .save(orderItem: pivot)

@@ -9,6 +9,7 @@ import Foundation
 import Vapor
 import Fluent
 import SendGrid
+import Queues
 
 struct AppFrontendURL: StorageKey {
     typealias Value = String
@@ -21,14 +22,61 @@ extension Application {
     }
 }
 
-protocol EmailRepositoryRepository {
+protocol EmailRepository {
     func sendItemAvailableEmail(for item: Item) throws -> EventLoopFuture<Void>
+    func sendOrderUpdateEmail(for order: Order) throws -> EventLoopFuture<Void>
+    func sendResetPasswordEmail(for buyer: Buyer,
+                                resetPasswordToken: BuyerResetPasswordToken) throws -> EventLoopFuture<Void>
 }
 
-struct SendGridEmailRepositoryRepository: EmailRepositoryRepository {
+struct SendGridEmailRepository: EmailRepository {
     let appFrontendURL: String
-    let client: SendGridClient
-    let eventLoop: EventLoop
+    let request: Request
+
+    func sendResetPasswordEmail(for buyer: Buyer,
+                                resetPasswordToken: BuyerResetPasswordToken) throws -> EventLoopFuture<Void> {
+        let emailTitle = "Reset Mật khẩu"
+        let emailContent = """
+        <p>Để reset lại mật khẩu, vui lòng click vào <a clicktracking=off href="\(self.appFrontendURL)/resetpassword?token=\(resetPasswordToken.value)">link</a>.</p>
+        """
+        
+        return try self.sendEmail(to: buyer.email,
+                                  title: emailTitle,
+                                  content: emailContent)
+    }
+
+    func sendOrderUpdateEmail(for order: Order) throws -> EventLoopFuture<Void> {
+        return order.$buyer.load(on: self.request.db)
+            .tryFlatMap {
+                let emailTitle = "Đơn hàng đã được update"
+                let orderState: String
+                switch order.state {
+                case .cart:
+                    orderState = "Giỏ hàng"
+                case .buyerVerificationRequired:
+                    orderState = "Đợi xác thực tài khoản"
+                case .delivered:
+                    orderState = "Đã giao"
+                case .failed:
+                    orderState = "Huỷ"
+                case .inProgress:
+                    orderState = "Đang xử lí"
+                case .registered:
+                    orderState = "Đã đăng kí"
+                case .stuck:
+                    orderState = "Tắc"
+                case .waitingForTracking:
+                    orderState = "Đợi tracking"
+                }
+                let emailContent = """
+                <p>Đơn hàng mã số \(order.orderIndex) đã được chuyển sang trạng thái: \(orderState)</p> Truy cập <a href="\(self.appFrontendURL)/orders">link</a> để check đơn ngay.</p>
+                """
+
+                return try self.sendEmail(to: order.buyer.email,
+                                          title: emailTitle,
+                                          content: emailContent)
+        }
+    }
 
     func sendItemAvailableEmail(for item: Item) throws -> EventLoopFuture<Void> {
         let isInStock = item.lastKnownAvailability == true
@@ -47,32 +95,22 @@ struct SendGridEmailRepositoryRepository: EmailRepositoryRepository {
             """
         }
         
-        let emailAddress = EmailAddress(email: "annavux@gmail.com")
-        
-        let emailConfig = Personalization(
-            to: [emailAddress],
-            subject: emailTitle)
+        return try self.sendEmail(to: "annavux@gmail.com", title: emailTitle, content: emailContent)
+    }
 
-        let fromEmail = EmailAddress(
-            email: "no-reply@1991ebay.com",
-            name: "1991Ebay")
-        
-        let email = SendGridEmail(
-            personalizations: [emailConfig],
-            from: fromEmail,
-            content: [
-              ["type": "text/html",
-              "value": emailContent]
-            ])
-
-        return try self.client.send(email: email, on: self.eventLoop)
+    private func sendEmail(to address: String, title: String, content: String) throws -> EventLoopFuture<Void> {
+        let payload = EmailJobPayload(destination: address,
+                                       title: title, content: content)
+        return self.request.queue.dispatch(EmailJob.self,
+                                           payload,
+                                           maxRetryCount: 3)
     }
 }
 
 struct EmailRepositoryRepositoryFactory {
-    var make: ((Request) -> EmailRepositoryRepository)?
+    var make: ((Request) -> EmailRepository)?
     
-    mutating func use(_ make: @escaping ((Request) -> EmailRepositoryRepository)) {
+    mutating func use(_ make: @escaping ((Request) -> EmailRepository)) {
         self.make = make
     }
 }
@@ -93,7 +131,7 @@ extension Application {
 }
 
 extension Request {
-    var emails: EmailRepositoryRepository {
+    var emails: EmailRepository {
         self.application.emails.make!(self)
     }
 }

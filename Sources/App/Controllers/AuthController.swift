@@ -12,7 +12,10 @@ import JWT
 struct AuthController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
         let groupedRoutes = routes.grouped("auth")
-        
+
+        groupedRoutes.post("validateResetPasswordToken", use: validateResetPasswordTokenHandler)
+        groupedRoutes.post("resetPassword", use: resetPasswordHandler)
+        groupedRoutes.post("requestResetPassword", use: requestResetPasswordHandler)
         groupedRoutes.post("register", use: registerBuyerHandler)
         groupedRoutes.post("refreshToken", use: refreshTokenHandler)
         groupedRoutes.post("logOut", use: logOutHandler)
@@ -25,6 +28,57 @@ struct AuthController: RouteCollection {
             .grouped(Buyer.guardMiddleware())
 
         protected.get("me", use: getMeHandler)
+    }
+
+    private func validateResetPasswordTokenHandler(request: Request) throws -> EventLoopFuture<HTTPResponseStatus> {
+        let input = try request.content.decode(ValidateResetPasswordTokenInput.self)
+
+        return request
+            .buyerResetPasswordTokens
+            .find(value: input.token)
+            .unwrap(or: Abort(.badRequest))
+            .transform(to: .ok)
+    }
+
+    private func resetPasswordHandler(request: Request) throws -> EventLoopFuture<HTTPResponseStatus> {
+        let input = try request.content.decode(ResetPasswordInput.self)
+
+        return request.buyerResetPasswordTokens
+            .find(value: input.resetPasswordToken)
+            .unwrap(or: Abort(.badRequest))
+            .tryFlatMap { token -> EventLoopFuture<Void> in
+                guard input.password == input.confirmPassword else {
+                    throw Abort(.badRequest)
+                }
+
+                let newPassword = try Bcrypt.hash(input.password)
+                token.buyer.passwordHash = newPassword
+
+                return request
+                    .buyers
+                    .save(buyer: token.buyer)
+                    .flatMap {
+                        return request.buyerResetPasswordTokens.deleteAll(buyerID: token.buyer.id!)
+                }
+            }.transform(to: .ok)
+    }
+
+    private func requestResetPasswordHandler(request: Request) throws -> EventLoopFuture<HTTPResponseStatus> {
+        let input = try request.content.decode(RequestResetPasswordInput.self)
+
+        return request
+            .buyers
+            .find(email: input.email)
+            .unwrap(or: Abort(.notFound))
+            .tryFlatMap { buyer -> EventLoopFuture<Void> in
+                let newResetPasswordToken = try buyer.generateResetPasswordToken()
+                return request
+                    .buyerResetPasswordTokens
+                    .save(buyerResetPasswordToken: newResetPasswordToken)
+                    .tryFlatMap {
+                        return try request.emails.sendResetPasswordEmail(for: buyer, resetPasswordToken: newResetPasswordToken)
+                }
+            }.transform(to: .ok)
     }
 
     private func logOutHandler(request: Request) throws -> EventLoopFuture<HTTPResponseStatus> {

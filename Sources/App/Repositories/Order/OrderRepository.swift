@@ -19,6 +19,7 @@ protocol OrderRepository {
     func getCurrentActiveOrder(sellerID: Seller.IDValue) -> EventLoopFuture<Order?>
     func getWaitingForTrackingOrders(sellerID: Seller.IDValue, pageRequest: PageRequest) -> EventLoopFuture<Page<Order>>
     func getOrder(orderID: Order.IDValue, for sellerID: Seller.IDValue) -> EventLoopFuture<Order?>
+    func getWaitingForBuyerVerificationOrders(buyerID: Buyer.IDValue) -> EventLoopFuture<[Order]>
 }
 
 struct DatabaseOrderRepository: OrderRepository {
@@ -26,6 +27,13 @@ struct DatabaseOrderRepository: OrderRepository {
 
     func find(orderID: Order.IDValue) -> EventLoopFuture<Order?> {
         return Order.find(orderID, on: self.db)
+    }
+
+    func getWaitingForBuyerVerificationOrders(buyerID: Buyer.IDValue) -> EventLoopFuture<[Order]> {
+        return Order.query(on: self.db)
+            .filter(\.$buyer.$id == buyerID)
+            .filter(\.$state == Order.State.buyerVerificationRequired)
+            .all()
     }
 
     func getCartOrder(of buyerID: Buyer.IDValue) -> EventLoopFuture<Order?> {

@@ -16,4 +16,7 @@ public func jobs(app: Application) throws {
         app.queues.schedule(UpdateQuantityJob())
             .hourly().at(.init(integerLiteral: minute))
     }
+
+    let emailJob = EmailJob()
+    app.queues.add(emailJob)
 }

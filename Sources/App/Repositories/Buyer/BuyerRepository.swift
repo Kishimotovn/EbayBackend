@@ -11,6 +11,7 @@ import Fluent
 
 protocol BuyerRepository {
     func find(buyerID: Buyer.IDValue) -> EventLoopFuture<Buyer?>
+    func find(email: String) -> EventLoopFuture<Buyer?>
     func save(buyer: Buyer) -> EventLoopFuture<Void>
 }
 
@@ -23,6 +24,12 @@ struct DatabaseBuyerRepository: BuyerRepository {
 
     func find(buyerID: Buyer.IDValue) -> EventLoopFuture<Buyer?> {
         return Buyer.find(buyerID, on: self.db)
+    }
+
+    func find(email: String) -> EventLoopFuture<Buyer?> {
+        return Buyer.query(on: self.db)
+            .filter(\.$email == email)
+            .first()
     }
 }
 
