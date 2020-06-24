@@ -11,12 +11,12 @@ import QueuesRedisDriver
 import Queues
 
 public func jobs(app: Application) throws {
+    let emailJob = EmailJob()
+    app.queues.add(emailJob)
+
     for i in 0..<12 {
         let minute = i*5
         app.queues.schedule(UpdateQuantityJob())
             .hourly().at(.init(integerLiteral: minute))
     }
-
-    let emailJob = EmailJob()
-    app.queues.add(emailJob)
 }

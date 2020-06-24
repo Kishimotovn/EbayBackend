@@ -59,14 +59,31 @@ struct UpdateQuantityJob: ScheduledJob {
                                                   <p>Item <a href="\(item.itemURL)">\(item.name ?? item.itemURL)</a> đã hết hàng :(.</p>
                                                 """
                                             }
-                                            let emailPayload = EmailJobPayload(destination: "annavux@gmail.com", title: emailTitle, content: emailContent)
                                             
-                                            return context
+                                            let emailAddress = EmailAddress(email: "annavux@gmail.com")
+                                            
+                                            let emailConfig = Personalization(
+                                                to: [emailAddress],
+                                                subject: emailTitle)
+
+                                            let fromEmail = EmailAddress(
+                                                email: "no-reply@1991ebay.com",
+                                                name: "1991Ebay")
+                                            
+                                            let email = SendGridEmail(
+                                                personalizations: [emailConfig],
+                                                from: fromEmail,
+                                                content: [
+                                                  ["type": "text/html",
+                                                   "value": emailContent]
+                                                ])
+
+                                            return try context
                                                 .application
-                                                .queues
-                                                .queue
-                                                .dispatch(EmailJob.self,
-                                                          emailPayload)
+                                                .sendgrid
+                                                .client
+                                                .send(email: email,
+                                                      on: context.eventLoop)
                                         } else {
                                             return context.eventLoop.future()
                                         }
