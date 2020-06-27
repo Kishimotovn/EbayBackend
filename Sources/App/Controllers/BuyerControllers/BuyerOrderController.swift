@@ -154,6 +154,13 @@ struct BuyerOrderController: RouteCollection {
                                         .find(id: $0.id!)
                                         .unwrap(or: Abort(.notFound))
                                 }.flatten(on: request.eventLoop)
+                        }.map { warehouses in
+                            if let buyer = request.auth.get(Buyer.self) {
+                                warehouses.forEach {
+                                    $0.name = "\($0.name) - \(buyer.username)"
+                                }
+                            }
+                            return warehouses
                         }
                     } else {
                         return request.eventLoop.makeSucceededFuture([])

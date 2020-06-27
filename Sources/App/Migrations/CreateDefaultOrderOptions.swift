@@ -10,9 +10,9 @@ import Fluent
 
 struct CreateDefaultOrderOptions: Migration {
     func prepare(on database: Database) -> EventLoopFuture<Void> {
-        let expressOption = OrderOption(name: "EXP", rate: 24500)
-        let semiExpressOption = OrderOption(name: "S-EXP", rate: 20500)
-        let standardOption = OrderOption(name: "STD", rate: 19500)
+        let expressOption = OrderOption(name: "EXP", rate: 20500)
+        let semiExpressOption = OrderOption(name: "S-EXP", rate: 19500)
+        let standardOption = OrderOption(name: "STD", rate: 19000)
 
         let allOptions = [expressOption, semiExpressOption, standardOption]
         let allOptionsFuture = allOptions.map {

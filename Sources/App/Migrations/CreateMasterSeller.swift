@@ -11,6 +11,7 @@ import Vapor
 
 struct CreateMasterSeller: Migration {
     static let masterName = "annavux@gmail.com"
+    static let masterWarehouseName = "AnnaVu 79"
     func prepare(on database: Database) -> EventLoopFuture<Void> {
         let name = CreateMasterSeller.masterName
         let passwordHash = try! Bcrypt.hash("68686868")
@@ -18,10 +19,10 @@ struct CreateMasterSeller: Migration {
         let masterSeller = Seller(name: name, passwordHash: passwordHash)
 
         let masterWarehouse = WarehouseAddress(
-            addressLine1: "3739  Jadewood Drive",
-            city: "Hammond",
-            state: "Indiana",
-            zipCode: "46320",
+            addressLine1: "9236 SE Woodstock Blvd, JmD",
+            city: "Portland",
+            state: "Oregon",
+            zipCode: "97266-5274",
             phoneNumber: "219-932-3095")
 
         return masterSeller.save(on: database)
@@ -31,7 +32,7 @@ struct CreateMasterSeller: Migration {
                     let masterSellerID = try masterSeller.requireID()
                     let masterWarehouseID = try masterWarehouse.requireID()
                     let pivot = SellerWarehouseAddress(
-                        name: "main_master_seller",
+                        name: CreateMasterSeller.masterWarehouseName,
                         sellerID: masterSellerID,
                         warehouseID: masterWarehouseID)
                     return pivot.save(on: database)
@@ -45,7 +46,7 @@ struct CreateMasterSeller: Migration {
         return SellerWarehouseAddress.query(on: database)
             .with(\.$seller)
             .with(\.$warehouse)
-            .filter(\.$name == "main_master_seller")
+            .filter(\.$name == CreateMasterSeller.masterWarehouseName)
             .first()
             .optionalFlatMap { warehousePivot in
                 return .andAllSucceed([
