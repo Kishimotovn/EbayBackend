@@ -19,4 +19,6 @@ public func jobs(app: Application) throws {
         app.queues.schedule(UpdateQuantityJob())
             .hourly().at(.init(integerLiteral: minute))
     }
+
+    try app.queues.startInProcessJobs(on: .default)
 }
