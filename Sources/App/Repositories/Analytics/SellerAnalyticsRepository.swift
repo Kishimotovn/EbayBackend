@@ -21,6 +21,7 @@ struct DatabaseSellerAnalyticsRepository: SellerAnalyticsRepository {
         return (self.db as! PostgresDatabase).query(
             """
             select
+                b.id,
                 row_number() OVER (order by b.created_at) as "index",
                 b.username,
                 b.email,

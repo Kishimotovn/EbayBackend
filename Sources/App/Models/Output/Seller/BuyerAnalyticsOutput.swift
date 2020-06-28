@@ -9,6 +9,7 @@ import Foundation
 import Vapor
 
 struct BuyerAnalyticsOutput: Content {
+    var id: Buyer.IDValue
     var index: Int
     var username: String
     var email: String

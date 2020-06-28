@@ -13,7 +13,46 @@ struct SellerBuyerController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
         let groupedRoutes = routes.grouped("sellerBuyers")
         
+        groupedRoutes.get(Buyer.parameterPath, use: getBuyerHandler)
+        groupedRoutes.get(Buyer.parameterPath, "warehouses", use: getBuyerWarehousesHandler)
         groupedRoutes.put(Buyer.parameterPath, "verify", use: verifyBuyerHandler)
+    }
+
+    private func getBuyerHandler(request: Request) throws -> EventLoopFuture<Buyer> {
+        guard let buyerID = request.parameters.get(Buyer.parameter, as: Buyer.IDValue.self) else {
+            throw Abort(.badRequest, reason: "Invalid Buyer ID")
+        }
+
+        return request
+            .buyers
+            .find(buyerID: buyerID)
+            .unwrap(or: Abort(.badRequest, reason: "Invalid Buyer ID"))
+    }
+
+    private func getBuyerWarehousesHandler(request: Request) throws -> EventLoopFuture<[BuyerWarehouseAddress]> {
+        guard let buyerID = request.parameters.get(Buyer.parameter, as: Buyer.IDValue.self) else {
+            throw Abort(.badRequest, reason: "Invalid Buyer ID")
+        }
+
+        return request
+            .buyers
+            .find(buyerID: buyerID)
+            .unwrap(or: Abort(.badRequest, reason: "Invalid Buyer ID"))
+            .flatMap { buyer in
+                return buyer
+                    .$buyerWarehouseAddresses
+                    .load(on: request.db)
+                    .flatMap {
+                        return buyer
+                            .buyerWarehouseAddresses
+                            .map {
+                                return request
+                                    .buyerWarehouseAddresses
+                                    .find(id: $0.id!)
+                                    .unwrap(or: Abort(.notFound))
+                            }.flatten(on: request.eventLoop)
+                }
+        }
     }
 
     private func verifyBuyerHandler(request: Request) throws -> EventLoopFuture<Buyer> {
