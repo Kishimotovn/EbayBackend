@@ -20,7 +20,7 @@ struct AuthController: RouteCollection {
         groupedRoutes.post("refreshToken", use: refreshTokenHandler)
         groupedRoutes.post("logOut", use: logOutHandler)
         
-        let passwordProtected = groupedRoutes.grouped(Buyer.authenticator())
+        let passwordProtected = groupedRoutes.grouped(BuyerBasicAuthenticator())
         passwordProtected.post("login", use: loginBuyerHandler)
 
         let protected = groupedRoutes
