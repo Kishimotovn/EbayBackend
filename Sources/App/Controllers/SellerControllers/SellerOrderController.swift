@@ -47,12 +47,12 @@ struct SellerOrderController: RouteCollection {
             let itemID = request.parameters.get(Item.parameter, as: Item.IDValue.self),
             let masterSellerID = request.application.masterSellerID
         else {
-            throw Abort(.badRequest)
+            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
         }
 
         return request.sellerItemSubscriptions
             .find(itemID: itemID, sellerID: masterSellerID)
-            .unwrap(or: Abort(.notFound))
+            .unwrap(or: Abort(.notFound, reason: "Yêu cầu không hợp lệ"))
             .flatMap { subscription
                 in
                 let item = subscription.item
@@ -75,7 +75,7 @@ struct SellerOrderController: RouteCollection {
     }
 
     private func getLastJobMonitoringHandler(request: Request) throws -> EventLoopFuture<JobMonitoring> {
-        return request.jobMonitorings.getLast(jobName: UpdateQuantityJob().name).unwrap(or: Abort(.notFound))
+        return request.jobMonitorings.getLast(jobName: UpdateQuantityJob().name).unwrap(or: Abort(.notFound, reason: "Yêu cầu không hợp lệ"))
     }
 
     private func deleteItemSubscriptionHandler(request: Request) throws -> EventLoopFuture<HTTPResponseStatus> {
@@ -83,7 +83,7 @@ struct SellerOrderController: RouteCollection {
             let itemID = request.parameters.get(Item.parameter, as: Item.IDValue.self),
             let masterSellerID = request.application.masterSellerID
         else {
-            throw Abort(.badRequest)
+            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
         }
 
         return request.sellerItemSubscriptions
@@ -99,13 +99,13 @@ struct SellerOrderController: RouteCollection {
 
     private func addItemSubscriptionHandler(request: Request) throws -> EventLoopFuture<Item> {
         guard let masterSellerID = request.application.masterSellerID else {
-            throw Abort(.badRequest)
+            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
         }
 
         let input = try request.content.decode(CreateItemSubscriptionInput.self)
         
         let sellerFuture = request.sellers.find(id: masterSellerID)
-            .unwrap(or: Abort(.notFound))
+            .unwrap(or: Abort(.notFound, reason: "Yêu cầu không hợp lệ"))
 
         let addedItemFuture = request.items
             .find(itemID: input.itemID)
@@ -144,11 +144,11 @@ struct SellerOrderController: RouteCollection {
 
     private func getItemSubscriptionsHandler(request: Request) throws -> EventLoopFuture<[Item]> {
         guard let masterSellerID = request.application.masterSellerID else {
-            throw Abort(.badRequest)
+            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
         }
 
         return request.sellers.find(id: masterSellerID)
-            .unwrap(or: Abort(.notFound))
+            .unwrap(or: Abort(.notFound, reason: "Yêu cầu không hợp lệ"))
             .flatMap { seller in
                 return seller.$subscribedItems.load(on: request.db)
                     .transform(to: seller.subscribedItems)
@@ -169,13 +169,13 @@ struct SellerOrderController: RouteCollection {
 
     private func moveOrderToState(request: Request, state: Order.State) throws -> EventLoopFuture<Order> {
         guard let orderID = request.parameters.get(Order.parameter, as: Order.IDValue.self) else {
-            throw Abort(.badRequest)
+            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
         }
 
         return request
             .orders
             .find(orderID: orderID)
-            .unwrap(or: Abort(.notFound))
+            .unwrap(or: Abort(.notFound, reason: "Yêu cầu không hợp lệ"))
             .flatMap { order in
                 order.state = state
                 return request
@@ -191,7 +191,7 @@ struct SellerOrderController: RouteCollection {
         guard
             let orderID = request.parameters.get(Order.parameter, as: Order.IDValue.self),
             let orderItemID = request.parameters.get(OrderItem.parameter, as: OrderItem.IDValue.self) else {
-            throw Abort(.badRequest)
+            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
         }
 
         let input = try request.content.decode(UpdateOrderItemInput.self)
@@ -199,7 +199,7 @@ struct SellerOrderController: RouteCollection {
         return request
             .orderItems
             .find(orderID: orderID, orderItemID: orderItemID)
-            .unwrap(or: Abort(.notFound))
+            .unwrap(or: Abort(.notFound, reason: "Yêu cầu không hợp lệ"))
             .flatMap { orderItem in
                 orderItem.isProcessed = input.isProcessed
                 return request
@@ -212,13 +212,13 @@ struct SellerOrderController: RouteCollection {
     private func deleteReceiptHandler(request: Request) throws -> EventLoopFuture<HTTPResponseStatus> {
         guard
             let orderItemReceiptID = request.parameters.get(OrderItemReceipt.parameter, as: OrderItemReceipt.IDValue.self) else {
-            throw Abort(.badRequest)
+            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
         }
 
         return request
             .orderItemReceipts
             .find(id: orderItemReceiptID)
-            .unwrap(or: Abort(.notFound))
+            .unwrap(or: Abort(.notFound, reason: "Yêu cầu không hợp lệ"))
             .tryFlatMap { receipt in
                 let workPath = request.application.directory.workingDirectory
                 let receiptsFolderName = "Receipts/"
@@ -241,13 +241,13 @@ struct SellerOrderController: RouteCollection {
     private func getReceiptImage(request: Request) throws -> EventLoopFuture<Response> {
         guard
             let orderItemReceiptID = request.parameters.get(OrderItemReceipt.parameter, as: OrderItemReceipt.IDValue.self) else {
-            throw Abort(.badRequest)
+            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
         }
 
         return request
             .orderItemReceipts
             .find(id: orderItemReceiptID)
-            .unwrap(or: Abort(.notFound))
+            .unwrap(or: Abort(.notFound, reason: "Yêu cầu không hợp lệ"))
             .map { receipt in
                 let workPath = request.application.directory.workingDirectory
                 let receiptsFolderName = "Receipts/"
@@ -261,22 +261,22 @@ struct SellerOrderController: RouteCollection {
 
     private func getOrderHandler(request: Request) throws -> EventLoopFuture<Order> {
         guard let masterSellerID = request.application.masterSellerID else {
-            throw Abort(.badRequest)
+            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
         }
 
         guard let orderID = request.parameters.get(Order.parameter, as: Order.IDValue.self) else {
-            throw Abort(.badRequest)
+            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
         }
 
         return request
             .orders
             .getOrder(orderID: orderID, for: masterSellerID)
-            .unwrap(or: Abort(.notFound))
+            .unwrap(or: Abort(.notFound, reason: "Yêu cầu không hợp lệ"))
     }
 
     private func getBuyerAnalyticsHandler(request: Request) throws -> EventLoopFuture<[BuyerAnalyticsOutput]> {
         guard let masterSellerID = request.application.masterSellerID else {
-            throw Abort(.badRequest)
+            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
         }
 
         return request.sellerAnalytics.buyerAnalytics(sellerID: masterSellerID)
@@ -285,7 +285,7 @@ struct SellerOrderController: RouteCollection {
     private func getWaitingForTrackingOrdersHandler(request: Request) throws -> EventLoopFuture<Page<Order>> {
         let pageRequest = try request.query.decode(PageRequest.self)
         guard let sellerID = request.application.masterSellerID else {
-            throw Abort(.badRequest)
+            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
         }
 
         return request
@@ -295,7 +295,7 @@ struct SellerOrderController: RouteCollection {
 
     private func updateReceiptHandler(request: Request) throws -> EventLoopFuture<OrderItemReceipt> {
         guard let orderItemReceiptID = request.parameters.get(OrderItemReceipt.parameter, as: OrderItem.IDValue.self) else {
-            throw Abort(.badRequest)
+            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
         }
 
         let input = try request.content.decode(UpdateOrderItemReceiptInput.self)
@@ -311,14 +311,14 @@ struct SellerOrderController: RouteCollection {
                     .save(orderItemReceipt: receipt)
                     .transform(to: receipt)
             }
-            .unwrap(or: Abort(.notFound))
+            .unwrap(or: Abort(.notFound, reason: "Yêu cầu không hợp lệ"))
     }
 
     private func createReceiptHandler(request: Request) throws -> EventLoopFuture<OrderItemReceipt> {
         guard
             let orderID = request.parameters.get(Order.parameter, as: Order.IDValue.self),
             let orderItemID = request.parameters.get(OrderItem.parameter, as: OrderItem.IDValue.self) else {
-            throw Abort(.badRequest)
+            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
         }
 
         let input = try request.content.decode(CreateOrderItemReceiptInput.self)
@@ -348,7 +348,7 @@ struct SellerOrderController: RouteCollection {
     private func getActiveOrders(request: Request) throws -> EventLoopFuture<Page<Order>> {
         let pageRequest = try request.query.decode(PageRequest.self)
         guard let sellerID = request.application.masterSellerID else {
-            throw Abort(.badRequest)
+            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
         }
 
         return request

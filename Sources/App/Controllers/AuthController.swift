@@ -36,7 +36,7 @@ struct AuthController: RouteCollection {
         return request
             .buyerResetPasswordTokens
             .find(value: input.token)
-            .unwrap(or: Abort(.badRequest))
+            .unwrap(or: Abort(.badRequest, reason: "Mã đặt lại mật khẩu không hợp lệ"))
             .transform(to: .ok)
     }
 
@@ -45,10 +45,10 @@ struct AuthController: RouteCollection {
 
         return request.buyerResetPasswordTokens
             .find(value: input.resetPasswordToken)
-            .unwrap(or: Abort(.badRequest))
+            .unwrap(or: Abort(.badRequest, reason: "Yêu cầu không hợp lệ"))
             .tryFlatMap { token -> EventLoopFuture<Void> in
                 guard input.password == input.confirmPassword else {
-                    throw Abort(.badRequest)
+                    throw Abort(.badRequest, reason: "Mật khẩu xác nhận không khớp")
                 }
 
                 let newPassword = try Bcrypt.hash(input.password)
@@ -69,7 +69,7 @@ struct AuthController: RouteCollection {
         return request
             .buyers
             .find(email: input.email)
-            .unwrap(or: Abort(.notFound))
+            .unwrap(or: Abort(.notFound, reason: "Yêu cầu không hợp lệ"))
             .tryFlatMap { buyer -> EventLoopFuture<Void> in
                 let newResetPasswordToken = try buyer.generateResetPasswordToken()
                 return request
@@ -115,7 +115,7 @@ struct AuthController: RouteCollection {
                         .buyerTokens
                         .delete(id: token.requireID())
                         .flatMapThrowing { _ throws -> BuyerTokensOutput in
-                            throw Abort(.unauthorized)
+                            throw Abort(.unauthorized, reason: "RTE")
                         }
                 }
             }.flatMap { $0 }
@@ -149,7 +149,7 @@ struct AuthController: RouteCollection {
 
         let input = try request.content.decode(CreateBuyerInput.self)
         guard input.password == input.confirmPassword else {
-            throw Abort(.badRequest, reason: "Passwords did not match")
+            throw Abort(.badRequest, reason: "Mật khẩu xác nhận không khớp")
         }
 
         let buyer = try input.buyer()

@@ -128,7 +128,7 @@ struct BuyerOrderController: RouteCollection {
                             return request
                                 .buyerWarehouseAddresses
                                 .find(id: $0.id!)
-                                .unwrap(or: Abort(.notFound))
+                                .unwrap(or: Abort(.notFound, reason: "Địa chỉ không hợp lệ"))
                         }.flatten(on: request.eventLoop)
             }
         } else {
@@ -152,7 +152,7 @@ struct BuyerOrderController: RouteCollection {
                                     return request
                                         .sellerWarehouseAddresses
                                         .find(id: $0.id!)
-                                        .unwrap(or: Abort(.notFound))
+                                        .unwrap(or: Abort(.notFound, reason: "Địa chỉ không hợp lệ"))
                                 }.flatten(on: request.eventLoop)
                         }.map { warehouses in
                             if let buyer = request.auth.get(Buyer.self) {
@@ -180,7 +180,7 @@ struct BuyerOrderController: RouteCollection {
     // MARK: - Cart Order Handlers:
     private func deleteCartOrderItemHandler(request: Request) throws -> EventLoopFuture<HTTPResponseStatus> {
         guard let orderItemID = request.parameters.get(OrderItem.parameter, as: OrderItem.IDValue.self) else {
-            throw Abort(.badRequest)
+            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
         }
 
         let buyer = try request.auth.require(Buyer.self)
@@ -188,14 +188,14 @@ struct BuyerOrderController: RouteCollection {
 
         return request.orders
             .getCartOrder(of: buyerID)
-            .unwrap(or: Abort(.notFound))
+            .unwrap(or: Abort(.notFound, reason: "Yêu cầu không hợp lệ"))
             .flatMap { cartOrder -> EventLoopFuture<OrderItem> in
                 do {
                     let orderID = try cartOrder.requireID()
                     return request
                         .orderItems
                         .find(orderID: orderID, orderItemID: orderItemID)
-                        .unwrap(or: Abort(.notFound))
+                        .unwrap(or: Abort(.notFound, reason: "Yêu cầu không hợp lệ"))
                 } catch let error {
                     return request.eventLoop.makeFailedFuture(error)
                 }
@@ -206,7 +206,7 @@ struct BuyerOrderController: RouteCollection {
 
     private func updateCartOrderItemHandler(request: Request) throws -> EventLoopFuture<OrderItem> {
         guard let orderItemID = request.parameters.get(OrderItem.parameter, as: OrderItem.IDValue.self) else {
-            throw Abort(.badRequest)
+            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
         }
 
         let buyer = try request.auth.require(Buyer.self)
@@ -214,19 +214,19 @@ struct BuyerOrderController: RouteCollection {
         let input = try request.content.decode(UpdateCartOrderItemInput.self)
 
         if let quantity = input.quantity, quantity <= 0 {
-            throw Abort(.badRequest)
+            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
         }
 
         return request.orders
             .getCartOrder(of: buyerID)
-            .unwrap(or: Abort(.notFound))
+            .unwrap(or: Abort(.notFound, reason: "Yêu cầu không hợp lệ"))
             .flatMap { cartOrder -> EventLoopFuture<OrderItem> in
                 do {
                     let orderID = try cartOrder.requireID()
                     return request
                         .orderItems
                         .find(orderID: orderID, orderItemID: orderItemID)
-                        .unwrap(or: Abort(.notFound))
+                        .unwrap(or: Abort(.notFound, reason: "Yêu cầu không hợp lệ"))
                 } catch let error {
                     return request.eventLoop.makeFailedFuture(error)
                 }
@@ -251,7 +251,7 @@ struct BuyerOrderController: RouteCollection {
         return try request
             .orders
             .getCartOrder(of: buyer.requireID())
-            .unwrap(or: Abort(.notFound))
+            .unwrap(or: Abort(.notFound, reason: "Yêu cầu không hợp lệ"))
             .flatMap { cartOrder -> EventLoopFuture<Order> in
                 return cartOrder.$buyer.load(on: request.db)
                     .transform(to: cartOrder)
@@ -306,7 +306,7 @@ struct BuyerOrderController: RouteCollection {
                     if hasAccess {
                         return id
                     } else {
-                        throw Abort(.badRequest)
+                        throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
                     }
             }
         } else if let newWarehouseAddress = input.newWarehouse {
@@ -332,13 +332,13 @@ struct BuyerOrderController: RouteCollection {
                     }
             }
         } else {
-            throw Abort(.badRequest)
+            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
         }
 
         return try request
             .orders
             .getCartOrder(of: buyer.requireID())
-            .unwrap(or: Abort(.notFound))
+            .unwrap(or: Abort(.notFound, reason: "Yêu cầu không hợp lệ"))
             .and(warehouseFuture)
             .flatMap { cartOrder, warehouseAddress -> EventLoopFuture<Order> in
                 cartOrder.$warehouseAddress.id = warehouseAddress
@@ -356,7 +356,7 @@ struct BuyerOrderController: RouteCollection {
         return try request
             .orders
             .getCartOrder(of: buyer.requireID())
-            .unwrap(or: Abort(.notFound))
+            .unwrap(or: Abort(.notFound, reason: "Yêu cầu không hợp lệ"))
             .flatMap { cartOrder in
                 var orderRelevanceInfoFutures: [EventLoopFuture<Void>] = []
 
@@ -384,7 +384,7 @@ struct BuyerOrderController: RouteCollection {
                             return try request
                                        .orders
                                        .getCartOrder(of: buyer.requireID())
-                                       .unwrap(or: Abort(.notFound))
+                                       .unwrap(or: Abort(.notFound, reason: "Yêu cầu không hợp lệ"))
                         } else {
                             return request.eventLoop.makeSucceededFuture(cartOrder)
                         }
@@ -400,7 +400,7 @@ struct BuyerOrderController: RouteCollection {
         return request
             .orders
             .getCartOrder(of: buyerID)
-            .unwrap(or: Abort(.notFound))
+            .unwrap(or: Abort(.notFound, reason: "Yêu cầu không hợp lệ"))
             .flatMap { (cartOrder: Order) -> EventLoopFuture<Order> in
                 var orderItems = cartOrder.orderItems
                 orderItems.sort { lhs, rhs in
@@ -421,7 +421,7 @@ struct BuyerOrderController: RouteCollection {
                 return request
                     .orders
                     .getCartOrder(of: buyerID)
-                    .unwrap(or: Abort(.notFound))
+                    .unwrap(or: Abort(.notFound, reason: "Yêu cầu không hợp lệ"))
             }
     }
 
@@ -514,7 +514,7 @@ struct BuyerOrderController: RouteCollection {
                     return request
                         .orders
                         .getCartOrder(of: buyer.id!)
-                }.unwrap(or: Abort(.internalServerError))
+                }.unwrap(or: Abort(.internalServerError, reason: "Lỗi hệ thống"))
     }
 
     private func addItemToCartHandler(request: Request) throws -> EventLoopFuture<Order> {
@@ -602,6 +602,6 @@ struct BuyerOrderController: RouteCollection {
                 return request
                     .orders
                     .getCartOrder(of: buyer.id!)
-            }.unwrap(or: Abort(.internalServerError))
+            }.unwrap(or: Abort(.internalServerError, reason: "Lỗi hệ thống"))
     }
 }

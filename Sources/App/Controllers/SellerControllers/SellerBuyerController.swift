@@ -49,7 +49,7 @@ struct SellerBuyerController: RouteCollection {
                                 return request
                                     .buyerWarehouseAddresses
                                     .find(id: $0.id!)
-                                    .unwrap(or: Abort(.notFound))
+                                    .unwrap(or: Abort(.notFound, reason: "Yêu cầu không hợp lệ"))
                             }.flatten(on: request.eventLoop)
                 }
         }
@@ -57,12 +57,12 @@ struct SellerBuyerController: RouteCollection {
 
     private func verifyBuyerHandler(request: Request) throws -> EventLoopFuture<Buyer> {
         guard let buyerID = request.parameters.get(Buyer.parameter, as: Buyer.IDValue.self) else {
-            throw Abort(.badRequest)
+            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
         }
 
         return request.buyers
             .find(buyerID: buyerID)
-            .unwrap(or: Abort(.badRequest))
+            .unwrap(or: Abort(.badRequest, reason: "Yêu cầu không hợp lệ"))
             .flatMap { buyer in
                 buyer.verifiedAt = Date()
                 return request.buyers

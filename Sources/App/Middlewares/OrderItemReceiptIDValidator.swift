@@ -27,7 +27,7 @@ struct OrderItemReceiptIDValidator: Middleware {
                     return next.respond(to: request)
                 }
 
-                return request.eventLoop.makeFailedFuture(Abort(.badRequest))
+                return request.eventLoop.makeFailedFuture(Abort(.badRequest, reason: "Yêu cầu không hợp lệ"))
         }
     }
 }

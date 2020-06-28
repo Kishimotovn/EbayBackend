@@ -13,7 +13,7 @@ struct SellerUpdateOrderRestrictor: Middleware {
     func respond(to request: Request, chainingTo next: Responder) -> EventLoopFuture<Response> {
         if let orderID = request.parameters.get(Order.parameter, as: Order.IDValue.self) {
             guard let sellerID = request.application.masterSellerID else {
-                return request.eventLoop.makeFailedFuture(Abort(.badRequest))
+                return request.eventLoop.makeFailedFuture(Abort(.badRequest, reason: "Yêu cầu không hợp lệ"))
             }
 
             return request
@@ -22,7 +22,7 @@ struct SellerUpdateOrderRestrictor: Middleware {
                 .flatMap { order in
                     if let currentActiveOrder = order {
                         if currentActiveOrder.id != orderID {
-                            return request.eventLoop.makeFailedFuture(Abort(.badRequest))
+                            return request.eventLoop.makeFailedFuture(Abort(.badRequest, reason: "Yêu cầu không hợp lệ"))
                         }
                     }
 

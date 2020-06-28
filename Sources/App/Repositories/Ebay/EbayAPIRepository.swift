@@ -121,7 +121,7 @@ class ClientEbayAPIRepository: EbayAPIRepository {
                     return self.searchItem(epid: itemID)
                 }
             }
-            .unwrap(or: Abort(.notFound))
+            .unwrap(or: Abort(.notFound, reason: "Yêu cầu không hợp lệ"))
             .flatMap { ebayItemID -> EventLoopFuture<EbayAPIItemOutput> in
                 return self.getItemDetails(ebayItemID: ebayItemID)
             }
