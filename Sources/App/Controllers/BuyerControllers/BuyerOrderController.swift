@@ -39,9 +39,117 @@ struct BuyerOrderController: RouteCollection {
         buyerProtectedRoutes.put("updateWarehouseAddress", use: updateWarehouseHandler)
         buyerProtectedRoutes.put("updateOrderOption", use: updateOrderOptionHandler)
         buyerProtectedRoutes.put("updateOrderRegistrationTime", use: updateOrderRegistrationTimeHandler)
+        buyerProtectedRoutes.put(Order.parameterPath, "acceptPriceChanges", use: acceptPriceChangesHandler)
+        buyerProtectedRoutes.put(Order.parameterPath, "denyPriceChanges", use: denyPriceChangesHandler)
     }
 
     // MARK: - Buyer order's info:
+    private func denyPriceChangesHandler(request: Request) throws -> EventLoopFuture<Order> {
+        guard let orderID = request.parameters.get(Order.parameter, as: Order.IDValue.self) else {
+            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
+        }
+
+        let buyer = try request.auth.require(Buyer.self)
+        let buyerID = try buyer.requireID()
+
+        return request
+            .orders
+            .find(orderID: orderID)
+            .unwrap(or: Abort(.badRequest, reason: "Yêu cầu không hợp lệ"))
+            .tryFlatMap { order -> EventLoopFuture<Order> in
+                guard order.$buyer.id == buyerID else {
+                    throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
+                }
+
+                guard order.state == .priceChanged else {
+                    throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
+                }
+
+                return order
+                    .$orderItems
+                    .load(on: request.db)
+                    .transform(to: order)
+            }.flatMap { order in
+                return order.orderItems.map { orderItem in
+                    if let updatedPrice = orderItem.updatedPrice {
+                        return request.orderItems.delete(orderItem: orderItem)
+                    } else {
+                        return request.eventLoop.future()
+                    }
+                }.flatten(on: request.eventLoop)
+                .flatMap {
+                    return order
+                        .$orderItems
+                        .load(on: request.db)
+                        .transform(to: order)
+                }
+                .transform(to: order)
+        }.flatMap { order in
+            if order.orderItems.isEmpty {
+                order.state = .failed
+                return request
+                    .orders
+                    .save(order: order)
+                    .tryFlatMap {
+                        return try request.emails.sendOrderUpdateEmail(for: order)
+                    }.transform(to: order)
+            } else {
+                order.state = .registered
+                return request
+                    .orders
+                    .save(order: order)
+                    .tryFlatMap {
+                        return try request.emails.sendOrderUpdateEmail(for: order)
+                    }.transform(to: order)
+            }
+        }
+    }
+
+    private func acceptPriceChangesHandler(request: Request) throws -> EventLoopFuture<Order> {
+        guard let orderID = request.parameters.get(Order.parameter, as: Order.IDValue.self) else {
+            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
+        }
+
+        let buyer = try request.auth.require(Buyer.self)
+        let buyerID = try buyer.requireID()
+
+        return request
+            .orders
+            .find(orderID: orderID)
+            .unwrap(or: Abort(.badRequest, reason: "Yêu cầu không hợp lệ"))
+            .tryFlatMap { order -> EventLoopFuture<Order> in
+                guard order.$buyer.id == buyerID else {
+                    throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
+                }
+
+                guard order.state == .priceChanged else {
+                    throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
+                }
+
+                return order
+                    .$orderItems
+                    .load(on: request.db)
+                    .transform(to: order)
+            }.flatMap { order in
+                return order.orderItems.map { orderItem in
+                    if let updatedPrice = orderItem.updatedPrice {
+                        orderItem.acceptedPrice = updatedPrice
+                        orderItem.updatedPrice = nil
+                    }
+                    return request.orderItems.save(orderItem: orderItem)
+                }.flatten(on: request.eventLoop)
+                .transform(to: order)
+        }.flatMap { order in
+            order.state = .registered
+            return request
+                .orders
+                .save(order: order)
+                .tryFlatMap {
+                    return try request.emails.sendOrderUpdateEmail(for: order)
+                }.transform(to: order)
+        }
+    }
+
     private func getInactiveOrdersHandler(request: Request) throws -> EventLoopFuture<Page<Order>> {
         let pageRequest = try request.query.decode(PageRequest.self)
         let buyer = try request.auth.require(Buyer.self)
@@ -504,6 +612,13 @@ struct BuyerOrderController: RouteCollection {
                                     pivot.itemEndDate = inputItem.itemEndDate
                                     pivot.furtherDiscountAmount = inputItem.furtherDiscountAmount
                                     pivot.furtherDiscountDetected = inputItem.furtherDiscountDetected
+                                    pivot.volumeDiscounts = inputItem.volumeDiscounts
+                                    pivot.acceptedPrice = inputItem.originalPrice
+                                    if let volumeDiscount = inputItem.volumeDiscounts?.first(where: {
+                                        $0.quantity == inputItem.quantity
+                                    }) {
+                                        pivot.acceptedPrice = volumeDiscount.afterDiscountItemPrice
+                                    }
                                 }
                                 return request
                                     .orderItems
@@ -595,6 +710,13 @@ struct BuyerOrderController: RouteCollection {
                 pivot.itemEndDate = input.itemEndDate
                 pivot.furtherDiscountAmount = input.furtherDiscountAmount
                 pivot.furtherDiscountDetected = input.furtherDiscountDetected
+                pivot.volumeDiscounts = input.volumeDiscounts
+                pivot.acceptedPrice = input.originalPrice
+                if let volumeDiscount = input.volumeDiscounts?.first(where: {
+                    $0.quantity == input.quantity
+                }) {
+                    pivot.acceptedPrice = volumeDiscount.afterDiscountItemPrice
+                }
                 return request
                     .orderItems
                     .save(orderItem: pivot)

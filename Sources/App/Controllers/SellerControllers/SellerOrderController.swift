@@ -31,6 +31,7 @@ struct SellerOrderController: RouteCollection {
         let validatedRoutes = groupedRoutes.grouped(OrderItemIDValidator())
         validatedRoutes.put(Order.parameterPath, OrderItem.parameterPath, use: updateOrderItemHandler)
         validatedRoutes.on(.POST, Order.parameterPath, OrderItem.parameterPath, "receipts", body: .collect(maxSize: "1mb"), use: createReceiptHandler)
+        validatedRoutes.put(Order.parameterPath, OrderItem.parameterPath, "updatePrice", use: updateOrderItemPriceHandler)
 
         validatedRoutes.group(OrderItemReceiptIDValidator()) { validated in
             validated.get(Order.parameterPath, OrderItem.parameterPath, "receipts", OrderItemReceipt.parameterPath, "image", use: getReceiptImage)
@@ -185,6 +186,41 @@ struct SellerOrderController: RouteCollection {
             }.tryFlatMap { order in
                 return try request.emails.sendOrderUpdateEmail(for: order).transform(to: order)
             }
+    }
+
+    private func updateOrderItemPriceHandler(request: Request) throws -> EventLoopFuture<OrderItem> {
+        guard
+            let orderID = request.parameters.get(Order.parameter, as: Order.IDValue.self),
+            let orderItemID = request.parameters.get(OrderItem.parameter, as: OrderItem.IDValue.self) else {
+            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
+        }
+
+        let input = try request.content.decode(UpdateOrderItemPriceInput.self)
+        
+        return request
+            .orderItems
+            .find(orderID: orderID, orderItemID: orderItemID)
+            .unwrap(or: Abort(.notFound, reason: "Yêu cầu không hợp lệ"))
+            .tryFlatMap { orderItem in
+                guard orderItem.acceptedPrice != input.updatedPrice else {
+                    throw Abort(.notFound, reason: "Yêu cầu không hợp lệ")
+                }
+                orderItem.updatedPrice = input.updatedPrice
+                var orderFuture: EventLoopFuture<Void> = request.eventLoop.future()
+                if orderItem.order.state != .priceChanged {
+                    orderItem.order.state = .priceChanged
+                    orderFuture = request.orders.save(order: orderItem.order).tryFlatMap {
+                        return try request
+                            .emails
+                            .sendOrderUpdateEmail(for: orderItem.order)
+                    }
+                }
+                return request
+                    .orderItems
+                    .save(orderItem: orderItem)
+                    .and(orderFuture)
+                    .transform(to: orderItem)
+        }
     }
 
     private func updateOrderItemHandler(request: Request) throws -> EventLoopFuture<OrderItem> {

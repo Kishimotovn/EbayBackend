@@ -67,6 +67,8 @@ struct SendGridEmailRepository: EmailRepository {
                     orderState = "Tắc"
                 case .waitingForTracking:
                     orderState = "Đợi tracking"
+                case .priceChanged:
+                    orderState = "Giá hàng thay đổi"
                 }
                 let emailContent = """
                 <p>Đơn hàng mã số \(order.orderIndex) đã được chuyển sang trạng thái: \(orderState)</p> Truy cập <a href="\(self.appFrontendURL)/orders">link</a> để check đơn ngay.</p>
@@ -101,9 +103,13 @@ struct SendGridEmailRepository: EmailRepository {
     private func sendEmail(to address: String, title: String, content: String) throws -> EventLoopFuture<Void> {
         let payload = EmailJobPayload(destination: address,
                                        title: title, content: content)
-        return self.request.queue.dispatch(EmailJob.self,
-                                           payload,
-                                           maxRetryCount: 3)
+        if Environment.get("REDIS_URL") != nil {
+            return self.request.queue.dispatch(EmailJob.self,
+                payload,
+                maxRetryCount: 3)
+        } else {
+            return self.request.eventLoop.future()
+        }
     }
 }
 

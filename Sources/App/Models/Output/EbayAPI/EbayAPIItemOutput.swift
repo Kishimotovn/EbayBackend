@@ -21,6 +21,12 @@ struct EbayAPIItemOutput: Content {
     var sellerScore: Double?
     var itemEndDate: Date?
     var quantityLeft: String?
+    var volumeDiscounts: [VolumeDiscount]?
     var furtherDiscountAmount: Int?
     var furtherDiscountDetected: Bool
+}
+
+struct VolumeDiscount: Codable {
+    var quantity: Int
+    var afterDiscountItemPrice: Int
 }

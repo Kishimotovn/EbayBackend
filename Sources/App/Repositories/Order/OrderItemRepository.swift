@@ -24,6 +24,8 @@ struct DatabaseOrderItemRepository: OrderItemRepository {
         return OrderItem.query(on: self.db)
             .filter(\.$id == orderItemID)
             .filter(\.$order.$id == orderID)
+            .with(\.$order)
+            .with(\.$item)
             .first()
     }
 

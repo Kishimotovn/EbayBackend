@@ -53,6 +53,7 @@ final class Order: Model, Content {
         case buyerVerificationRequired
         case registered
         case inProgress
+        case priceChanged
         case waitingForTracking
         case delivered
 

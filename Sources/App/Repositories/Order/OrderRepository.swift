@@ -97,7 +97,7 @@ struct DatabaseOrderRepository: OrderRepository {
                          pageRequest: PageRequest) -> EventLoopFuture<Page<Order>> {
         return Order.query(on: self.db)
             .filter(\.$buyer.$id == buyerID)
-            .filter(\.$state ~~ [.buyerVerificationRequired, .registered, .inProgress, .waitingForTracking])
+            .filter(\.$state ~~ [.buyerVerificationRequired, .priceChanged, .registered, .inProgress, .waitingForTracking])
             .sort(\.$orderRegisteredAt, .descending)
             .with(\.$orderItems) {
                 $0.with(\.$item)

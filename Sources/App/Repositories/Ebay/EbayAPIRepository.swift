@@ -64,7 +64,7 @@ class ClientEbayAPIRepository: EbayAPIRepository {
                 quantityLeft = "> \(estimatedQuantity)"
             }
 
-            var furtherDiscountAmount: EventLoopFuture<Int?> = self.client.eventLoop.makeSucceededFuture(nil)
+            var furtherDiscountAmount: EventLoopFuture<(Int?, [VolumeDiscount]?)> = self.client.eventLoop.makeSucceededFuture((nil, nil))
             
             if let coupon = item
                 .availableCoupons?
@@ -74,7 +74,8 @@ class ClientEbayAPIRepository: EbayAPIRepository {
                     return lhsAmount < rhsAmount })
                 .first {
                     if let couponAmount = coupon.discountAmount?.value?.currencyValue() {
-                        furtherDiscountAmount = self.client.eventLoop.makeSucceededFuture(Int(truncating: (couponAmount * 100) as NSNumber))
+                        let directDiscount = Int(truncating: (couponAmount * 100) as NSNumber)
+                        furtherDiscountAmount = self.client.eventLoop.makeSucceededFuture((directDiscount, nil))
                     }
             } else {
                 furtherDiscountAmount = self.getFurtherDiscountFromWebPage(
@@ -82,8 +83,8 @@ class ClientEbayAPIRepository: EbayAPIRepository {
                                             from: normalizedOriginalPrice)
             }
 
-            return furtherDiscountAmount.map { furtherDiscountAmount in
-                let detected = furtherDiscountAmount != nil && furtherDiscountAmount! > 0
+            return furtherDiscountAmount.map { directDiscount, volumeDiscounts in
+                let detected = (directDiscount != nil && directDiscount! > 0) || (volumeDiscounts?.isEmpty == false)
                 return EbayAPIItemOutput(
                     itemID: item.itemId,
                     name: item.title,
@@ -97,7 +98,8 @@ class ClientEbayAPIRepository: EbayAPIRepository {
                     sellerScore: Double(item.seller.feedbackPercentage),
                     itemEndDate: endDate,
                     quantityLeft: quantityLeft,
-                    furtherDiscountAmount: furtherDiscountAmount,
+                    volumeDiscounts: volumeDiscounts,
+                    furtherDiscountAmount: directDiscount,
                     furtherDiscountDetected: detected
                 )
             }
@@ -127,38 +129,70 @@ class ClientEbayAPIRepository: EbayAPIRepository {
             }
     }
 
-    private func getFurtherDiscountFromWebPage(urlString: String, from price: Int) -> EventLoopFuture<Int?> {
+    private func getFurtherDiscountFromWebPage(urlString: String, from price: Int) -> EventLoopFuture<(Int?, [VolumeDiscount]?)> {
         let uri = URI(string: urlString)
 
         return self.client.get(uri)
-            .map { response -> Int? in
+            .map { response -> (Int?, [VolumeDiscount]?) in
                 do {
                     if let body = response.body {
                         let html = String(buffer: body)
                         let doc: Document = try! SwiftSoup.parse(html)
-                        guard let element = try doc.select(".smeOfferMsg").first()?.text().lowercased()
-                        else {
-                            return nil
-                        }
-                        
-                        let regex = try NSRegularExpression(pattern: "extra (\\d+)% off")
-                        let range = NSRange(location: 0, length: element.utf16.count)
-                        guard
-                            let groups = regex
+                        var directDiscount: Int?
+
+                        if let element = try doc.select(".smeOfferMsg").first()?.text().lowercased() {
+                            let regex = try NSRegularExpression(pattern: "extra (\\d+)% off")
+                            let range = NSRange(location: 0, length: element.utf16.count)
+                            if let groups = regex
                                 .firstMatch(in: element, options: [], range: range)?
                                 .groups(testedString: element),
-                            let percentGroup = groups.get(at: 1),
-                            let percentage = Double(percentGroup)
-                        else {
-                            return nil
+                                let percentGroup = groups.get(at: 1),
+                                let percentage = Double(percentGroup) {
+                                let directDiscountAmount = Int(Double(price) * percentage/100.0)
+                                directDiscount = directDiscountAmount
+                            }
                         }
 
-                        return Int(Double(price) * percentage/100.0)
+                        var volumeDiscounts: [VolumeDiscount]?
+                        if html.contains("volumePricingOfferModel") {
+                            let volumnOfferRegex = try NSRegularExpression(pattern: "\"volumePricingOfferModel\":\\[[^\\]]*\\]")
+                            let range = NSRange(location: 0, length: html.utf16.count)
+                            if let groups = volumnOfferRegex
+                                .firstMatch(in: html, options: [], range: range)?
+                                .groups(testedString: html),
+                                let volumnDiscountString = groups.get(at: 0) {
+                                let volumnOfferContentRegex = try NSRegularExpression(pattern: "\\[[^\\]]*\\]")
+                                let contentRange = NSRange(location: 0, length: volumnDiscountString.utf16.count)
+                                if let contentGroups = volumnOfferContentRegex
+                                    .firstMatch(in: volumnDiscountString,
+                                            options: [], range: contentRange)?
+                                    .groups(testedString: volumnDiscountString),
+                                    let volumnDiscountContentString = contentGroups.get(at: 0),
+                                    let jsonData = volumnDiscountContentString.data(using: .utf8)
+                                {
+                                    let decoder = JSONDecoder()
+                                    let decodedData = (try? decoder.decode([VolumeDiscountResponse].self, from: jsonData)) ?? []
+                                    if !decodedData.isEmpty {
+                                        volumeDiscounts = decodedData.filter {
+                                            $0.quantity != nil && $0.afterDiscountItemPriceDouble != nil
+                                        }.map {
+                                            let quantity = $0.quantity!
+                                            let afterDiscountItemPriceDoule = Double($0.afterDiscountItemPriceDouble!) ?? 0.0
+                                            let afterDiscountItemPrice = Int(afterDiscountItemPriceDoule * 100.0)
+                                            return VolumeDiscount(quantity: quantity, afterDiscountItemPrice: afterDiscountItemPrice)
+                                        }
+                                    }
+                                }
+
+                            }
+                        }
+
+                        return (directDiscount, volumeDiscounts)
                     }
 
-                    return nil
+                    return (nil, nil)
                 } catch _ {
-                    return nil
+                    return (nil, nil)
                 }
             }
     }
@@ -353,6 +387,21 @@ struct EbayGetItemResponse: Content {
     var topRatedBuyingExperience: Bool?
     var unitPrice: ConvertedAmount?
     var unitPricingMeasure: String?
+}
+
+struct VolumeDiscountResponse: Codable {
+    var quantity: Int?
+    var discountValue: Double?
+    var discountValueStrPercent: String?
+    var afterDiscountItemPrice: String?
+    var afterDiscountItemPriceWithSymbol: String?
+    var afterDiscountItemPricePerUnit: String?
+    var afterDiscountItemPricePerUnitWithSymbol: String?
+    var afterDiscountItemPriceDouble: String?
+    var offerText: String?
+    var offerTextAccessibility: String?
+    var origItemPriceWithSymbol: String?
+    var discountAmountWithSymbol: String?
 }
 
 extension EbayGetItemResponse {

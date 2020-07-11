@@ -22,5 +22,6 @@ struct AddItemToCartInput: Content {
     var sellerScore: Double?
     var itemEndDate: Date?
     var furtherDiscountAmount: Int?
+    var volumeDiscounts: [VolumeDiscount]?
     var furtherDiscountDetected: Bool
 }

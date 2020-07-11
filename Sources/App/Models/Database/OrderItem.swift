@@ -25,6 +25,12 @@ final class OrderItem: Model, Content {
     @Field(key: "index")
     var index: Int
 
+    @Field(key: "accepted_price")
+    var acceptedPrice: Int
+
+    @Field(key: "updated_price")
+    var updatedPrice: Int?
+
     @Field(key: "quantity")
     var quantity: Int
 
@@ -40,6 +46,9 @@ final class OrderItem: Model, Content {
     @Children(for: \.$orderItem)
     var receipts: [OrderItemReceipt]
 
+    @Field(key: "volumeDiscounts")
+    var volumeDiscounts: [VolumeDiscount]?
+
     @Timestamp(key: "created_at", on: .create)
     var createdAt: Date?
 
@@ -51,7 +60,13 @@ final class OrderItem: Model, Content {
 
     init() {}
 
-    init(orderID: Order.IDValue, itemID: Item.IDValue, index: Int, quantity: Int, itemEndDate: Date? = nil, furtherDiscountAmount: Int? = nil, isProcessed: Bool = false, furtherDiscountDetected: Bool = false) {
+    init(orderID: Order.IDValue,
+         itemID: Item.IDValue,
+         index: Int, quantity: Int,
+         itemEndDate: Date? = nil,
+         furtherDiscountAmount: Int? = nil,
+         isProcessed: Bool = false,
+         furtherDiscountDetected: Bool = false) {
         self.$order.id = orderID
         self.$item.id = itemID
         self.index = index

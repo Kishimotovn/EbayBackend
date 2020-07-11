@@ -29,4 +29,6 @@ public func migrate(app: Application) throws {
     app.migrations.add(AddVerifiedAtToBuyer())
     app.migrations.add(CreateBuyerResetPasswordTokens())
     app.migrations.add(AddFurtherDiscountDetectedToOrderItem())
+    app.migrations.add(AddVolumeDiscountsToOrderItems())
+    app.migrations.add(AddAcceptedPriceAndUpdatedPriceToOrderItem())
 }
