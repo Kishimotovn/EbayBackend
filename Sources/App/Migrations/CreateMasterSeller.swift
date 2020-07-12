@@ -10,7 +10,7 @@ import Fluent
 import Vapor
 
 struct CreateMasterSeller: Migration {
-    static let masterName = "annavux@gmail.com"
+    static let masterName = "minhdung910@gmail.com"
     static let masterWarehouseName = "AnnaVu 79"
     func prepare(on database: Database) -> EventLoopFuture<Void> {
         let name = CreateMasterSeller.masterName

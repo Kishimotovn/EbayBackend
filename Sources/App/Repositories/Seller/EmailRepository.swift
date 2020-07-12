@@ -97,7 +97,7 @@ struct SendGridEmailRepository: EmailRepository {
             """
         }
         
-        return try self.sendEmail(to: "annavux@gmail.com", title: emailTitle, content: emailContent)
+        return try self.sendEmail(to: "minhdung910@gmail.com", title: emailTitle, content: emailContent)
     }
 
     private func sendEmail(to address: String, title: String, content: String) throws -> EventLoopFuture<Void> {
