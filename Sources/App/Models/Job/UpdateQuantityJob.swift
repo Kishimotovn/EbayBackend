@@ -29,8 +29,7 @@ struct UpdateQuantityJob: ScheduledJob {
                                 ebayAppID: context.application.ebayAppID ?? "",
                                 ebayAppSecret: context.application.ebayAppSecret ?? "")
                             let itemRepository = DatabaseItemRepository(db: context.application.db)
-
-                            return items.map { (item: Item) in
+                            let allPromises: [EventLoopFuture<Void>] = items.map { (item: Item) in
                                 return clientEbayRepository.getItemDetails(ebayItemID: item.itemID)
                                     .flatMap { (output: EbayAPIItemOutput) -> EventLoopFuture<(Item, Bool)> in
                                         let isOutOfStock = output.quantityLeft == "0"
@@ -89,12 +88,25 @@ struct UpdateQuantityJob: ScheduledJob {
                                         }
                                 }
                             }
-                            .flatten(on: context.eventLoop)
+                            return self.runByChunk(futures: allPromises, eventLoop: context.eventLoop)
                     }.flatMap {
                         jobMonitoring.finishedAt = Date()
                         return jobMonitoringRepository.save(jobMonitoring: jobMonitoring)
                     }
                 }
             }
+    }
+
+    private func runByChunk<T>(futures: [EventLoopFuture<T>], chunk: Int = 10, eventLoop: EventLoop) -> EventLoopFuture<Void> {
+        let batch = futures.prefix(chunk)
+
+        return batch.flatten(on: eventLoop).flatMap { _ in
+            if batch.count <= chunk {
+                return eventLoop.future()
+            } else {
+                let newBatch = futures.suffix(from: chunk)
+                return self.runByChunk(futures: Array(newBatch), chunk: chunk, eventLoop: eventLoop)
+            }
+        }
     }
 }
