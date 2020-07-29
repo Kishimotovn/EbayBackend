@@ -97,7 +97,7 @@ struct UpdateQuantityJob: ScheduledJob {
             }
     }
 
-    private func runByChunk<T>(futures: [EventLoopFuture<T>], chunk: Int = 10, eventLoop: EventLoop) -> EventLoopFuture<Void> {
+    private func runByChunk<T>(futures: [EventLoopFuture<T>], chunk: Int = 5, eventLoop: EventLoop) -> EventLoopFuture<Void> {
         let batch = futures.prefix(chunk)
 
         return batch.flatten(on: eventLoop).flatMap { _ in
