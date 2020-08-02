@@ -60,9 +60,10 @@ struct UpdateQuantityJob: ScheduledJob {
                                             }
                                             
                                             let emailAddress = EmailAddress(email: "minhdung910@gmail.com")
-                                            
+                                            let emailAddress2 = EmailAddress(email: "chonusebay@gmail.com")
+
                                             let emailConfig = Personalization(
-                                                to: [emailAddress],
+                                                to: [emailAddress, emailAddress2],
                                                 subject: emailTitle)
 
                                             let fromEmail = EmailAddress(
