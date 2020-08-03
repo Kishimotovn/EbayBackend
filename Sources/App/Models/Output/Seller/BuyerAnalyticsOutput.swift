@@ -15,6 +15,6 @@ struct BuyerAnalyticsOutput: Content {
     var email: String
     var joinDate: Date
     var orderCount: Int
-    var totalRevenue: Int
-    var avgRate: Double
+    var totalRevenue: Int?
+    var avgRate: Double?
 }
