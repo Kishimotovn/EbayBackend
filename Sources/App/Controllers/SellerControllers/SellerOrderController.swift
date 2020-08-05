@@ -23,6 +23,9 @@ struct SellerOrderController: RouteCollection {
         groupedRoutes.delete("itemSubscriptions", Item.parameterPath, use: deleteItemSubscriptionHandler)
         groupedRoutes.get("itemSubscriptions", "lastFetch", use: getLastJobMonitoringHandler)
 
+        groupedRoutes.put("orderOptions", use: updateSTDRateHandler)
+        groupedRoutes.put("avoidedEbaySellers", use: updateAvoidedEbaySellersHandler)
+
         groupedRoutes.get(Order.parameterPath, use: getOrderHandler)
         groupedRoutes.put(Order.parameterPath, "inProgress", use: moveOrderToWaitingForTrackingState)
         groupedRoutes.put(Order.parameterPath, "waitingForTracking", use: moveOrderToWaitingForTrackingState)
@@ -38,9 +41,43 @@ struct SellerOrderController: RouteCollection {
             validated.delete(Order.parameterPath, OrderItem.parameterPath, "receipts", OrderItemReceipt.parameterPath, use: deleteReceiptHandler)
             validated.put(Order.parameterPath, OrderItem.parameterPath, "receipts", OrderItemReceipt.parameterPath, use: updateReceiptHandler)
         }
+    }
 
-//        let restrictedRoutes = validatedRoutes
-//            .grouped(SellerUpdateOrderRestrictor())
+    private func updateAvoidedEbaySellersHandler(request: Request) throws -> EventLoopFuture<HTTPResponseStatus> {
+        let input = try request.content.decode(UpdateAvoidedEbaySellersInput.self)
+        
+        guard
+            let masterSellerID = request.application.masterSellerID
+        else {
+            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
+        }
+
+        return
+            request
+                .sellers
+                .find(id: masterSellerID)
+                .unwrap(or: Abort(.notFound))
+                .flatMap { seller in
+                    seller.avoidedEbaySellers = input.sellers
+                    return seller.save(on: request.db)
+                        .map {
+                            request.application.masterSellerAvoidedSellers = input.sellers
+                        }
+                        .transform(to: .ok)
+        }
+    }
+
+    private func updateSTDRateHandler(request: Request) throws -> EventLoopFuture<HTTPResponseStatus> {
+        let input = try request.content.decode(UpdateSTDOptionRateInput.self)
+        
+        return request
+            .orderOptions
+            .find(name: "STD")
+            .unwrap(or: Abort(.notFound))
+            .flatMap { option in
+                option.rate = input.rate
+                return request.orderOptions.save(orderOption: option).transform(to: .ok)
+        }
     }
 
     private func refreshItemSubscriptionHandler(request: Request) throws -> EventLoopFuture<Item> {

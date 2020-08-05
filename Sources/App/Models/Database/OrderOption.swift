@@ -37,3 +37,5 @@ final class OrderOption: Model, Content {
         self.rate = rate
     }
 }
+
+extension OrderOption: Parameter { }

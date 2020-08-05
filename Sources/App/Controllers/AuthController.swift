@@ -19,15 +19,28 @@ struct AuthController: RouteCollection {
         groupedRoutes.post("register", use: registerBuyerHandler)
         groupedRoutes.post("refreshToken", use: refreshTokenHandler)
         groupedRoutes.post("logOut", use: logOutHandler)
+
+        groupedRoutes.post("sellerRefreshToken", use: sellerRefreshTokenHandler)
+        
+        groupedRoutes.post("sellerLogOut", use: sellerLogOutHandler)
         
         let passwordProtected = groupedRoutes.grouped(BuyerBasicAuthenticator())
         passwordProtected.post("login", use: loginBuyerHandler)
+
+        let sellerPasswordProtected = groupedRoutes.grouped(SellerBasicAuthenticator())
+        sellerPasswordProtected.post("sellerLogin", use: loginSellerHandler)
 
         let protected = groupedRoutes
             .grouped(BuyerJWTAuthenticator())
             .grouped(Buyer.guardMiddleware())
 
         protected.get("me", use: getMeHandler)
+
+        let sellerProtected = groupedRoutes
+            .grouped(SellerJWTAuthenticator())
+            .grouped(Seller.guardMiddleware())
+        
+        sellerProtected.get("seller", use: getSellerHandler)
     }
 
     private func validateResetPasswordTokenHandler(request: Request) throws -> EventLoopFuture<HTTPResponseStatus> {
@@ -81,6 +94,17 @@ struct AuthController: RouteCollection {
             }.transform(to: .ok)
     }
 
+    private func sellerLogOutHandler(request: Request) throws -> EventLoopFuture<HTTPResponseStatus> {
+        let input = try request.content.decode(RefreshTokenInput.self)
+
+        return request
+            .sellerTokens
+            .find(value: input.refreshToken)
+            .optionalFlatMapThrowing { token in
+                return try request.sellerTokens.delete(id: token.requireID())
+        }.transform(to: .ok)
+    }
+
     private func logOutHandler(request: Request) throws -> EventLoopFuture<HTTPResponseStatus> {
         let input = try request.content.decode(RefreshTokenInput.self)
 
@@ -90,6 +114,35 @@ struct AuthController: RouteCollection {
             .optionalFlatMapThrowing { token in
                 return try request.buyerTokens.delete(id: token.requireID())
         }.transform(to: .ok)
+    }
+
+    private func sellerRefreshTokenHandler(request: Request) throws -> EventLoopFuture<BuyerTokensOutput> {
+        let input = try request.content.decode(RefreshTokenInput.self)
+
+        return request
+            .sellerTokens
+            .find(value: input.refreshToken)
+            .unwrap(or: Abort(.badRequest))
+            .flatMapThrowing { token -> EventLoopFuture<BuyerTokensOutput> in
+                if token.expiredAt > Date() {
+                    let payload = Seller.AccessTokenPayload(sellerID: token.$seller.id)
+                    let accessToken = try request.jwt.sign(payload)
+                    
+                    let newTokens = BuyerTokensOutput(
+                        refreshToken: token.value,
+                        accessToken: accessToken,
+                        expiredAt: payload.exp.value)
+
+                    return request.eventLoop.makeSucceededFuture(newTokens)
+                } else {
+                    return try request
+                        .sellerTokens
+                        .delete(id: token.requireID())
+                        .flatMapThrowing { _ throws -> BuyerTokensOutput in
+                            throw Abort(.unauthorized, reason: "RTE")
+                        }
+                }
+            }.flatMap { $0 }
     }
 
     private func refreshTokenHandler(request: Request) throws -> EventLoopFuture<BuyerTokensOutput> {
@@ -121,9 +174,32 @@ struct AuthController: RouteCollection {
             }.flatMap { $0 }
     }
 
+    private func getSellerHandler(request: Request) throws -> Seller {
+        return request.auth.get(Seller.self)!
+    }
+
     private func getMeHandler(request: Request) throws -> Buyer {
         return request.auth.get(Buyer.self)!
     }
+
+    private func loginSellerHandler(request: Request) throws -> EventLoopFuture<BuyerTokensOutput> {
+       let seller = try request.auth.require(Seller.self)
+       let payload = try seller.accessTokenPayload()
+       let accessToken = try request.jwt.sign(payload)
+       let refreshToken = try seller.generateToken()
+
+       return request
+           .sellerTokens
+           .save(token: refreshToken)
+           .map {
+               let tokens = BuyerTokensOutput(
+                   refreshToken: refreshToken.value,
+                   accessToken: accessToken,
+                   expiredAt: payload.exp.value)
+
+               return tokens
+       }
+   }
 
     private func loginBuyerHandler(request: Request) throws -> EventLoopFuture<BuyerTokensOutput> {
         let buyer = try request.auth.require(Buyer.self)

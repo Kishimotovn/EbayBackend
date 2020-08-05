@@ -12,10 +12,19 @@ import Fluent
 protocol OrderOptionRepository {
     func all() -> EventLoopFuture<[OrderOption]>
     func save(orderOption: OrderOption) -> EventLoopFuture<Void>
+    func delete(orderOptionID: OrderOption.IDValue) -> EventLoopFuture<Void>
+    func find(name: String) -> EventLoopFuture<OrderOption?>
 }
 
 struct DatabaseOrderOptionRepository: OrderOptionRepository {
     let db: Database
+
+    func find(name: String) -> EventLoopFuture<OrderOption?> {
+        return OrderOption
+            .query(on: self.db)
+            .filter(\.$name == name)
+            .first()
+    }
 
     func save(orderOption: OrderOption) -> EventLoopFuture<Void> {
         return orderOption.save(on: self.db)
@@ -24,8 +33,16 @@ struct DatabaseOrderOptionRepository: OrderOptionRepository {
     func all() -> EventLoopFuture<[OrderOption]> {
         return OrderOption
             .query(on: self.db)
+            .filter(\.$name == "STD")
             .sort(\.$rate, .descending)
             .all()
+    }
+
+    func delete(orderOptionID: OrderOption.IDValue) -> EventLoopFuture<Void> {
+        return OrderOption
+            .query(on: self.db)
+            .filter(\.$id == orderOptionID)
+            .delete()
     }
 }
 

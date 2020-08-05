@@ -13,10 +13,19 @@ struct MasterSellerID: StorageKey {
     typealias Value = Seller.IDValue
 }
 
+struct MasterSellerAvoidedSellers: StorageKey {
+    typealias Value = [String]
+}
+
 extension Application {
     var masterSellerID: Seller.IDValue? {
         get { self.storage[MasterSellerID.self] }
         set { self.storage[MasterSellerID.self] = newValue }
+    }
+
+    var masterSellerAvoidedSellers: [String]? {
+        get { self.storage[MasterSellerAvoidedSellers.self] }
+        set { self.storage[MasterSellerAvoidedSellers.self] = newValue }
     }
 }
 
@@ -28,6 +37,7 @@ struct MasterSellerRegistration: LifecycleHandler {
             .flatMapThrowing { seller in
                 if let masterSeller = seller {
                     application.masterSellerID = try masterSeller.requireID()
+                    application.masterSellerAvoidedSellers = masterSeller.avoidedEbaySellers
                 }
         }
     }

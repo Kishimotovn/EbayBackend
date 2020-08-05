@@ -10,15 +10,15 @@ import Vapor
 import JWT
 
 struct SellerJWTAuthenticator: JWTAuthenticator {
-    typealias Payload = Buyer.AccessTokenPayload
+    typealias Payload = Seller.AccessTokenPayload
 
-    func authenticate(jwt: Buyer.AccessTokenPayload, for request: Request) -> EventLoopFuture<Void> {
-        guard let buyerID = UUID.init(jwt.sub.value) else {
+    func authenticate(jwt: Seller.AccessTokenPayload, for request: Request) -> EventLoopFuture<Void> {
+        guard let sellerID = UUID.init(jwt.sub.value) else {
             return request.eventLoop.makeFailedFuture(Abort(.unauthorized, reason: "Yêu cầu không hợp lệ"))
         }
 
-        return request.buyers
-            .find(buyerID: buyerID)
+        return request.sellers
+            .find(id: sellerID)
             .flatMapThrowing
             {
                 guard let user = $0 else {

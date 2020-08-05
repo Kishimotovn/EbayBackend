@@ -8,6 +8,7 @@
 import Foundation
 import Fluent
 import Vapor
+import JWT
 
 final class Seller: Model, Content {
     static var schema: String = "sellers"
@@ -30,6 +31,9 @@ final class Seller: Model, Content {
     @Timestamp(key: "deleted_at", on: .delete)
     var deletedAt: Date?
 
+    @OptionalField(key: "avoided_ebay_sellers")
+    var avoidedEbaySellers: [String]?
+
     @Siblings(through: SellerWarehouseAddress.self, from: \.$seller, to: \.$warehouse)
     var warehouseAddresses: [WarehouseAddress]
 
@@ -45,5 +49,50 @@ final class Seller: Model, Content {
          passwordHash: String) {
         self.name = name
         self.passwordHash = passwordHash
+    }
+}
+
+extension Seller: ModelAuthenticatable {
+    static var usernameKey: KeyPath<Seller, Field<String>> = \.$name
+    static var passwordHashKey: KeyPath<Seller, Field<String>> = \.$passwordHash
+
+    func verify(password: String) throws -> Bool {
+        return try Bcrypt.verify(password, created: self.passwordHash)
+    }
+}
+
+extension Seller {
+    struct AccessTokenPayload: JWTPayload {
+        var issuer: IssuerClaim
+        var issuedAt: IssuedAtClaim
+        var exp: ExpirationClaim
+        var sub: SubjectClaim
+
+        init(issuer: String = "Metis-API",
+             issuedAt: Date = Date(),
+             expirationAt: Date = Date().addingTimeInterval(60*60*2),
+             sellerID: Seller.IDValue) {
+            self.issuer = IssuerClaim(value: issuer)
+            self.issuedAt = IssuedAtClaim(value: issuedAt)
+            self.exp = ExpirationClaim(value: expirationAt)
+            self.sub = SubjectClaim(value: sellerID.description)
+        }
+
+        func verify(using signer: JWTSigner) throws {
+            try self.exp.verifyNotExpired()
+        }
+    }
+
+    func accessTokenPayload() throws -> AccessTokenPayload {
+        return try AccessTokenPayload(sellerID: self.requireID())
+    }
+}
+
+extension Seller {
+    func generateToken() throws -> SellerToken {
+        try .init(
+            value: [UInt8].random(count: 16).base64,
+            sellerID: self.requireID()
+        )
     }
 }

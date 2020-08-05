@@ -31,4 +31,5 @@ public func migrate(app: Application) throws {
     app.migrations.add(AddFurtherDiscountDetectedToOrderItem())
     app.migrations.add(AddVolumeDiscountsToOrderItems())
     app.migrations.add(AddAcceptedPriceAndUpdatedPriceToOrderItem())
+    app.migrations.add(AddAvoidedEbaySellersToSeller())
 }

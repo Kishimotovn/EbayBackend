@@ -16,6 +16,7 @@ protocol EbayAPIRepository {
 }
 
 class ClientEbayAPIRepository: EbayAPIRepository {
+    let application: Application
     let client: Client
     let ebayAppID: String
     let ebayAppSecret: String
@@ -23,7 +24,8 @@ class ClientEbayAPIRepository: EbayAPIRepository {
     var currentToken: EbayToken?
     var currentRefreshTokenCall: EventLoopFuture<Void>?
 
-    init(client: Client, ebayAppID: String, ebayAppSecret: String) {
+    init(application: Application, client: Client, ebayAppID: String, ebayAppSecret: String) {
+        self.application = application
         self.client = client
         self.ebayAppID = ebayAppID
         self.ebayAppSecret = ebayAppSecret
@@ -209,7 +211,7 @@ class ClientEbayAPIRepository: EbayAPIRepository {
                 "X-EBAY-C-MARKETPLACE-ID": "EBAY_US",
                 "Authorization": "Bearer \(self.currentToken?.accessToken ?? "")"
         ]) { (request: inout ClientRequest) throws in
-            let input = EbaySearchItemInput(epid: epid)
+            let input = EbaySearchItemInput(epid: epid, excludedSellers: self.application.masterSellerAvoidedSellers)
             try request.query.encode(input)
         }.flatMapThrowing { (response: ClientResponse) throws in
             let ebayResponse = try response.content.decode(EbayItemSearchResponse.self)
@@ -237,7 +239,11 @@ class ClientEbayAPIRepository: EbayAPIRepository {
         }.map { (response: ClientResponse) in
             do {
                 let ebayResponse = try response.content.decode(EbayGetItemResponse.self)
-                return ebayResponse.itemId
+                if self.application.masterSellerAvoidedSellers?.contains(ebayResponse.seller.username) == true {
+                    return nil
+                } else {
+                    return ebayResponse.itemId
+                }
             } catch let error {
                 print("search legacy error", error)
                 return nil
@@ -257,7 +263,7 @@ class ClientEbayAPIRepository: EbayAPIRepository {
                 "X-EBAY-C-MARKETPLACE-ID": "EBAY_US",
                 "Authorization": "Bearer \(self.currentToken?.accessToken ?? "")"
         ]) { (request: inout ClientRequest) throws in
-            let input = EbaySearchItemInput(q: itemID)
+            let input = EbaySearchItemInput(q: itemID, excludedSellers: self.application.masterSellerAvoidedSellers)
             try request.query.encode(input)
         }.flatMapThrowing { (response: ClientResponse) throws in
             let ebayResponse = try response.content.decode(EbayItemSearchResponse.self)
@@ -321,6 +327,18 @@ struct EbaySearchItemInput: Content {
     var q: String?
     var epid: String?
     var filter: String = "buyingOptions:{FIXED_PRICE},itemLocationCountry:US"
+
+    init(q: String? = nil,
+         epid: String? = nil,
+         excludedSellers: [String]? = nil) {
+        self.q = q
+        self.epid = epid
+        if let sellers = excludedSellers, !sellers.isEmpty {
+            self.filter = "buyingOptions:{FIXED_PRICE},itemLocationCountry:US,excludeSellers:{\(sellers.joined(separator: "|"))}"
+        } else {
+            self.filter = "buyingOptions:{FIXED_PRICE},itemLocationCountry:US"
+        }
+    }
 }
 
 struct EbayItemSearchResponse: Content {

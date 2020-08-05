@@ -25,6 +25,7 @@ struct UpdateQuantityJob: ScheduledJob {
                     return jobMonitoringRepository.save(jobMonitoring: jobMonitoring)
                         .flatMap {
                             let clientEbayRepository = ClientEbayAPIRepository(
+                                application: context.application,
                                 client: context.application.client,
                                 ebayAppID: context.application.ebayAppID ?? "",
                                 ebayAppSecret: context.application.ebayAppSecret ?? "")
@@ -48,12 +49,12 @@ struct UpdateQuantityJob: ScheduledJob {
                                             let emailContent: String
                                             let emailTitle: String
                                             if isInStock {
-                                                emailTitle = "Item đã có hàng!"
+                                                emailTitle = "✅ item Available!"
                                                 emailContent = """
                                                   <p>Item <a href="\(item.itemURL)">\(item.name ?? item.itemURL)</a> đã có hàng. Truy cập <a href="\(appFrontendURL)">link</a> để đặt hàng ngay.</p>
                                                 """
                                             } else {
-                                                emailTitle = "Item đã hết hàng!"
+                                                emailTitle = "⛔️ item Outstock!"
                                                 emailContent = """
                                                   <p>Item <a href="\(item.itemURL)">\(item.name ?? item.itemURL)</a> đã hết hàng :(.</p>
                                                 """

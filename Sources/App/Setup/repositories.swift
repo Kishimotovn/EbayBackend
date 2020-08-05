@@ -48,7 +48,8 @@ public func setupRepositories(app: Application) throws {
         return DatabaseSellerAnalyticsRepository(db: req.db)
     }
     app.ebayAPIs.use { req in
-        return ClientEbayAPIRepository(client: req.client,
+        return ClientEbayAPIRepository(application: req.application,
+                                       client: req.client,
                                        ebayAppID: req.application.ebayAppID ?? "",
                                        ebayAppSecret: req.application.ebayAppSecret ?? "")
     }
@@ -66,6 +67,9 @@ public func setupRepositories(app: Application) throws {
         return DatabaseBuyerResetPasswordTokenRepository(db: req.db)
     }
     app.jwt.signers.use(JWTSigner.hs256(key: [UInt8]("Kishimotovn".utf8)))
+    app.sellerTokens.use { req in
+        return DatabaseSellerTokenRepository(db: req.db)
+    }
 
     app.ebayAppID = Environment.process.EBAY_APP_ID
     app.ebayAppSecret = Environment.process.EBAY_APP_SECRET
