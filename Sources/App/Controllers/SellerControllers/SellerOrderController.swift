@@ -24,7 +24,7 @@ struct SellerOrderController: RouteCollection {
         groupedRoutes.get("itemSubscriptions", "lastFetch", use: getLastJobMonitoringHandler)
 
         groupedRoutes.put("orderOptions", use: updateSTDRateHandler)
-        groupedRoutes.put("avoidedEbaySellers", use: updateAvoidedEbaySellersHandler)
+        groupedRoutes.put("seller", use: updateSellerHandler)
 
         groupedRoutes.get(Order.parameterPath, use: getOrderHandler)
         groupedRoutes.put(Order.parameterPath, "inProgress", use: moveOrderToWaitingForTrackingState)
@@ -43,8 +43,8 @@ struct SellerOrderController: RouteCollection {
         }
     }
 
-    private func updateAvoidedEbaySellersHandler(request: Request) throws -> EventLoopFuture<HTTPResponseStatus> {
-        let input = try request.content.decode(UpdateAvoidedEbaySellersInput.self)
+    private func updateSellerHandler(request: Request) throws -> EventLoopFuture<HTTPResponseStatus> {
+        let input = try request.content.decode(UpdateSellerInput.self)
         
         guard
             let masterSellerID = request.application.masterSellerID
@@ -58,10 +58,14 @@ struct SellerOrderController: RouteCollection {
                 .find(id: masterSellerID)
                 .unwrap(or: Abort(.notFound))
                 .flatMap { seller in
-                    seller.avoidedEbaySellers = input.sellers
+                    if let sellers = input.excludedSellers {
+                        seller.avoidedEbaySellers = sellers
+                    }
                     return seller.save(on: request.db)
                         .map {
-                            request.application.masterSellerAvoidedSellers = input.sellers
+                            if let sellers = input.excludedSellers {
+                                request.application.masterSellerAvoidedSellers = sellers
+                            }
                         }
                         .transform(to: .ok)
         }

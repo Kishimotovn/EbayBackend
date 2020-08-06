@@ -8,6 +8,6 @@
 import Foundation
 import Vapor
 
-struct UpdateAvoidedEbaySellersInput: Content {
-    var sellers: [String]
+struct UpdateSellerInput: Content {
+    var excludedSellers: [String]?
 }
