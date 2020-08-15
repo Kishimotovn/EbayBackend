@@ -292,7 +292,18 @@ class ClientEbayAPIRepository: EbayAPIRepository {
             scheme: "https",
             host: "api.ebay.com",
             path: "identity/v1/oauth2/token")
-        let credentials = "\(self.ebayAppID):\(self.ebayAppSecret)"
+        let ids = self.ebayAppID.components(separatedBy: ",")
+        let secrets = self.ebayAppSecret.components(separatedBy: ",")
+        if self.application.secretIndex >= ids.count {
+            self.application.secretIndex = 0
+        }
+        
+        print("picking from index: \(self.application.secretIndex)")
+        
+        let choosenID = ids.get(at: self.application.secretIndex) ?? ""
+        let choosenSecret = secrets.get(at: self.application.secretIndex) ?? ""
+        
+        let credentials = "\(choosenID):\(choosenSecret)"
         let encoded = Data(credentials.utf8).base64EncodedString()
 
         let future = self.client.post(
@@ -306,8 +317,9 @@ class ClientEbayAPIRepository: EbayAPIRepository {
         }.flatMapThrowing { (response: ClientResponse) throws -> Void in
             let token = try response.content.decode(EbayToken.self)
             self.currentToken = token
-            self.tokenExpiryDate = Date().addingTimeInterval(TimeInterval(token.expiresIn - 60))
+            self.tokenExpiryDate = Date().addingTimeInterval(60)
             self.currentRefreshTokenCall = nil
+            self.application.secretIndex += 1
         }
 
         self.currentRefreshTokenCall = future
