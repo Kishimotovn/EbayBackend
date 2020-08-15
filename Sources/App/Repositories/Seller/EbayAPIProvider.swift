@@ -20,6 +20,10 @@ struct SecretIndex: StorageKey {
     typealias Value = Int
 }
 
+struct ScanInterval: StorageKey {
+    typealias Value = Int
+}
+
 extension Application {
     var ebayAppID: String? {
         get { self.storage[EbayAppID.self] }
@@ -37,6 +41,15 @@ extension Application {
         }
         set {
             self.storage[SecretIndex.self] = newValue
+        }
+    }
+
+    var scanInterval: Int {
+        get {
+            self.storage[ScanInterval.self] ?? 5
+        }
+        set {
+            self.storage[ScanInterval.self] = newValue
         }
     }
 }

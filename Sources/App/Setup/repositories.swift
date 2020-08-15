@@ -74,7 +74,8 @@ public func setupRepositories(app: Application) throws {
     app.ebayAppID = Environment.process.EBAY_APP_ID
     app.ebayAppSecret = Environment.process.EBAY_APP_SECRET
     app.appFrontendURL = Environment.process.FRONTEND_URL
-    
+    app.scanInterval = Int(Environment.process.SCAN_INTERVAL ?? "") ?? 5
+
     if (Environment.process.SENDGRID_API_KEY != nil) {
         app.sendgrid.initialize()
     }
