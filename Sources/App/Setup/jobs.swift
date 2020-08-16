@@ -16,4 +16,5 @@ public func jobs(app: Application) throws {
     app.queues
         .schedule(UpdateQuantityJob())
         .minutely()
+        .at(0)
 }
