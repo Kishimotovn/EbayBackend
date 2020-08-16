@@ -16,8 +16,20 @@ struct UpdateQuantityJob: ScheduledJob {
         return Item.query(on: context.application.db)
             .join(SellerItemSubscription.self, on: \Item.$id == \SellerItemSubscription.$item.$id, method: .inner)
             .all()
-            .flatMap { items -> EventLoopFuture<Void> in
-                if items.isEmpty {
+            .tryFlatMap { items -> EventLoopFuture<Void> in
+                let now = Date()
+                let calendar = Calendar.current
+                let minutes = calendar.component(.minute, from: now)
+                let subscriptions = try items.map {
+                    try $0.joined(SellerItemSubscription.self)
+                }
+                let validItems: [Item] = zip(items, subscriptions).filter { (item, subscription) in
+                    return (minutes % (subscription.scanInterval ?? context.application.scanInterval)) == 0
+                }.map { (item, subscription) in
+                    return item
+                }
+
+                if validItems.isEmpty {
                     return context.eventLoop.future()
                 } else {
                     let jobMonitoringRepository = DatabaseJobMonitoringRepository(db: context.application.db)
@@ -30,7 +42,7 @@ struct UpdateQuantityJob: ScheduledJob {
                                 ebayAppID: context.application.ebayAppID ?? "",
                                 ebayAppSecret: context.application.ebayAppSecret ?? "")
                             let itemRepository = DatabaseItemRepository(db: context.application.db)
-                            let allPromises: [EventLoopFuture<Void>] = items.map { (item: Item) in
+                            let allPromises: [EventLoopFuture<Void>] = validItems.map { (item: Item) in
                                 return clientEbayRepository.getItemDetails(ebayItemID: item.itemID)
                                     .flatMap { (output: EbayAPIItemOutput) -> EventLoopFuture<(Item, Bool)> in
                                         let isOutOfStock = output.quantityLeft == "0"

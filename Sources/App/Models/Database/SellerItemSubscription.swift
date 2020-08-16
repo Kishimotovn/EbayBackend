@@ -27,11 +27,17 @@ final class SellerItemSubscription: Model, Content {
     @Timestamp(key: "updated_at", on: .update)
     var updatedAt: Date?
 
+    @OptionalField(key: "scan_interval")
+    var scanInterval: Int?
+
     init() { }
 
-    init(sellerID: Seller.IDValue, itemID: Item.IDValue) {
+    init(sellerID: Seller.IDValue,
+         itemID: Item.IDValue,
+         scanInterval: Int = 5) {
         self.$seller.id = sellerID
         self.$item.id = itemID
+        self.scanInterval = scanInterval
     }
 }
 

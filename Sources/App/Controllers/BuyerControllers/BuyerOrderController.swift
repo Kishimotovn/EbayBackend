@@ -71,7 +71,7 @@ struct BuyerOrderController: RouteCollection {
                     .transform(to: order)
             }.flatMap { order in
                 return order.orderItems.map { orderItem in
-                    if let updatedPrice = orderItem.updatedPrice {
+                    if let _ = orderItem.updatedPrice {
                         return request.orderItems.delete(orderItem: orderItem)
                     } else {
                         return request.eventLoop.future()
