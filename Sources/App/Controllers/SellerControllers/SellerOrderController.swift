@@ -20,6 +20,7 @@ struct SellerOrderController: RouteCollection {
         groupedRoutes.get("itemSubscriptions", use: getItemSubscriptionsHandler)
         groupedRoutes.get("itemSubscriptions", Item.parameterPath, use: refreshItemSubscriptionHandler)
         groupedRoutes.post("itemSubscriptions", use: addItemSubscriptionHandler)
+        groupedRoutes.put("itemSubscriptions", SellerItemSubscription.parameterPath, use: updateItemSubscriptionHandler)
         groupedRoutes.delete("itemSubscriptions", Item.parameterPath, use: deleteItemSubscriptionHandler)
         groupedRoutes.get("itemSubscriptions", "lastFetch", use: getLastJobMonitoringHandler)
 
@@ -40,6 +41,24 @@ struct SellerOrderController: RouteCollection {
             validated.get(Order.parameterPath, OrderItem.parameterPath, "receipts", OrderItemReceipt.parameterPath, "image", use: getReceiptImage)
             validated.delete(Order.parameterPath, OrderItem.parameterPath, "receipts", OrderItemReceipt.parameterPath, use: deleteReceiptHandler)
             validated.put(Order.parameterPath, OrderItem.parameterPath, "receipts", OrderItemReceipt.parameterPath, use: updateReceiptHandler)
+        }
+    }
+
+    private func updateItemSubscriptionHandler(request: Request) throws -> EventLoopFuture<HTTPResponseStatus> {
+        guard let itemSubscriptionID = request.parameters.get(SellerItemSubscription.parameter, as: SellerItemSubscription.IDValue.self) else {
+            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
+        }
+        let input = try request.content.decode(UpdateItemSubscriptionInput.self)
+
+        return SellerItemSubscription
+            .query(on: request.db)
+            .filter(\.$id == itemSubscriptionID)
+            .first()
+            .unwrap(or: Abort(.badRequest, reason: "Yêu cầu không hợp lệ"))
+            .flatMap { subscription in
+                subscription.scanInterval = input.scanInterval
+                return subscription.save(on: request.db)
+                .transform(to: .ok)
         }
     }
 
@@ -117,7 +136,10 @@ struct SellerOrderController: RouteCollection {
     }
 
     private func getLastJobMonitoringHandler(request: Request) throws -> EventLoopFuture<JobMonitoring> {
-        return request.jobMonitorings.getLast(jobName: UpdateQuantityJob().name).unwrap(or: Abort(.notFound, reason: "Yêu cầu không hợp lệ"))
+        return request
+            .jobMonitorings
+            .getLast(jobName: UpdateQuantityJob().name)
+            .unwrap(or: Abort(.notFound, reason: "Yêu cầu không hợp lệ"))
     }
 
     private func deleteItemSubscriptionHandler(request: Request) throws -> EventLoopFuture<HTTPResponseStatus> {
@@ -184,7 +206,7 @@ struct SellerOrderController: RouteCollection {
         }
     }
 
-    private func getItemSubscriptionsHandler(request: Request) throws -> EventLoopFuture<[Item]> {
+    private func getItemSubscriptionsHandler(request: Request) throws -> EventLoopFuture<[SellerItemSubscription]> {
         guard let masterSellerID = request.application.masterSellerID else {
             throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
         }
@@ -192,8 +214,12 @@ struct SellerOrderController: RouteCollection {
         return request.sellers.find(id: masterSellerID)
             .unwrap(or: Abort(.notFound, reason: "Yêu cầu không hợp lệ"))
             .flatMap { seller in
-                return seller.$subscribedItems.load(on: request.db)
-                    .transform(to: seller.subscribedItems)
+                return SellerItemSubscription.query(on: request.db)
+                    .filter(\.$seller.$id == seller.id!)
+                    .with(\.$item)
+                    .all()
+//                return seller.$subscribedItems.load(on: request.db)
+//                    .transform(to: seller.subscribedItems)
         }
     }
 
