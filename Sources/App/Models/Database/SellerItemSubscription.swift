@@ -27,6 +27,9 @@ final class SellerItemSubscription: Model, Content {
     @Timestamp(key: "updated_at", on: .update)
     var updatedAt: Date?
 
+    @Timestamp(key: "deleted_at", on: .delete)
+    var deletedAt: Date?
+
     @OptionalField(key: "scan_interval")
     var scanInterval: Int?
 

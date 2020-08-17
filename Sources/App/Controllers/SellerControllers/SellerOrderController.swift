@@ -217,9 +217,8 @@ struct SellerOrderController: RouteCollection {
                 return SellerItemSubscription.query(on: request.db)
                     .filter(\.$seller.$id == seller.id!)
                     .with(\.$item)
+                    .sort(\.$createdAt, .descending)
                     .all()
-//                return seller.$subscribedItems.load(on: request.db)
-//                    .transform(to: seller.subscribedItems)
         }
     }
 
