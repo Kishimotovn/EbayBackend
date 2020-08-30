@@ -34,4 +34,5 @@ public func migrate(app: Application) throws {
     app.migrations.add(AddAvoidedEbaySellersToSeller())
     app.migrations.add(AddScanIntervalToSellerItemSubscription())
     app.migrations.add(AddDeletedAtToSellerItemSubscription())
+    app.migrations.add(AddCustomNameToSellerItemSubscription())
 }

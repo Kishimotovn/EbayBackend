@@ -30,3 +30,21 @@ final class JobMonitoring: Model, Content {
         self.jobName = jobName
     }
 }
+
+struct JobMonitoringMiddleware: ModelMiddleware {
+    func create(model: JobMonitoring, on db: Database, next: AnyModelResponder) -> EventLoopFuture<Void> {
+        return next.create(model, on: db).flatMap {
+            return JobMonitoring.query(on: db).count()
+        }.flatMap { jobCount in
+            if jobCount >= 7000 {
+                return JobMonitoring
+                    .query(on: db)
+                    .sort(\.$createdAt, .ascending)
+                    .limit(5000)
+                    .delete()
+            } else {
+                return db.eventLoop.future()
+            }
+        }
+    }
+}

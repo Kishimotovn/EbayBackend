@@ -33,6 +33,9 @@ final class SellerItemSubscription: Model, Content {
     @OptionalField(key: "scan_interval")
     var scanInterval: Int?
 
+    @OptionalField(key: "custom_name")
+    var customName: String?
+
     init() { }
 
     init(sellerID: Seller.IDValue,

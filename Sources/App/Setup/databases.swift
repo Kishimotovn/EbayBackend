@@ -21,4 +21,5 @@ public func databases(app: Application) throws {
             database: Environment.get("DATABASE_NAME") ?? "ebay_db"
         ), as: .psql)
     }
+    app.databases.middleware.use(JobMonitoringMiddleware(), on: .psql)
 }

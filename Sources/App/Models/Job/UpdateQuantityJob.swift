@@ -31,7 +31,9 @@ struct UpdateQuantityJob: ScheduledJob {
 
                 context.application.logger.info("Running scan for \(validItems.count) items")
                 if validItems.isEmpty {
-                    return context.eventLoop.future()
+                    return context
+                        .eventLoop
+                        .future()
                 } else {
                     let jobMonitoringRepository = DatabaseJobMonitoringRepository(db: context.application.db)
                     let jobMonitoring = JobMonitoring(jobName: self.name)
@@ -53,7 +55,7 @@ struct UpdateQuantityJob: ScheduledJob {
                                         item.lastKnownAvailability = !isOutOfStock
                                         return itemRepository
                                             .save(item: item)
-                                        .transform(to: (item, shouldNotify))
+                                            .transform(to: (item, shouldNotify))
                                     }.tryFlatMap { item, shouldNotify in
                                         if shouldNotify {
                                             let isInStock = item.lastKnownAvailability == true
@@ -61,15 +63,16 @@ struct UpdateQuantityJob: ScheduledJob {
 
                                             let emailContent: String
                                             let emailTitle: String
+                                            let subscription = try? item.joined(SellerItemSubscription.self)
                                             if isInStock {
                                                 emailTitle = "✅ item Available!"
                                                 emailContent = """
-                                                  <p>Item <a href="\(item.itemURL)">\(item.name ?? item.itemURL)</a> đã có hàng. Truy cập <a href="\(appFrontendURL)">link</a> để đặt hàng ngay.</p>
+                                                <p>Item <a href="\(item.itemURL)">\(subscription?.customName ?? item.name ?? item.itemURL)</a> đã có hàng. Truy cập <a href="\(appFrontendURL)">link</a> để đặt hàng ngay.</p>
                                                 """
                                             } else {
                                                 emailTitle = "⛔️ item Outstock!"
                                                 emailContent = """
-                                                  <p>Item <a href="\(item.itemURL)">\(item.name ?? item.itemURL)</a> đã hết hàng :(.</p>
+                                                  <p>Item <a href="\(item.itemURL)">\(subscription?.customName ?? item.name ?? item.itemURL)</a> đã hết hàng :(.</p>
                                                 """
                                             }
                                             
@@ -105,8 +108,11 @@ struct UpdateQuantityJob: ScheduledJob {
                             }
                             return self.runByChunk(futures: allPromises, eventLoop: context.eventLoop)
                     }.flatMap {
-                        jobMonitoring.finishedAt = Date()
-                        return jobMonitoringRepository.save(jobMonitoring: jobMonitoring)
+                        if !validItems.isEmpty {                            jobMonitoring.finishedAt = Date()
+                            return jobMonitoringRepository.save(jobMonitoring: jobMonitoring)
+                        } else {
+                            return context.eventLoop.future()
+                        }
                     }
                 }
             }

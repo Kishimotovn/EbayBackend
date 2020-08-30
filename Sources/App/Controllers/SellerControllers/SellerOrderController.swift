@@ -56,9 +56,15 @@ struct SellerOrderController: RouteCollection {
             .first()
             .unwrap(or: Abort(.badRequest, reason: "Yêu cầu không hợp lệ"))
             .flatMap { subscription in
-                subscription.scanInterval = input.scanInterval
-                return subscription.save(on: request.db)
-                .transform(to: .ok)
+                if let scanInterval = input.scanInterval, scanInterval != subscription.scanInterval {
+                    subscription.scanInterval = scanInterval
+                }
+                if let customName = input.customName, customName != subscription.customName {
+                    subscription.customName = customName
+                }
+                return subscription
+                    .save(on: request.db)
+                    .transform(to: .ok)
         }
     }
 

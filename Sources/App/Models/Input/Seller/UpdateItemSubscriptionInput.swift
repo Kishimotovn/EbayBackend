@@ -9,5 +9,6 @@ import Foundation
 import Vapor
 
 struct UpdateItemSubscriptionInput: Content {
-    var scanInterval: Int
+    var scanInterval: Int?
+    var customName: String?
 }
