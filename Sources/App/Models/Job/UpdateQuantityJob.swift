@@ -15,6 +15,13 @@ struct UpdateQuantityJob: ScheduledJob {
     func run(context: QueueContext) -> EventLoopFuture<Void> {
         return Item.query(on: context.application.db)
             .join(SellerItemSubscription.self, on: \Item.$id == \SellerItemSubscription.$item.$id, method: .inner)
+            .field(SellerItemSubscription.self, \.$customName)
+            .field(\.$itemID)
+            .field(\.$lastKnownAvailability)
+            .field(\.$id)
+            .field(\.$name)
+            .field(\.$itemURL)
+            .field(SellerItemSubscription.self, \.$item.$id)
             .all()
             .tryFlatMap { items -> EventLoopFuture<Void> in
                 let now = Date()
@@ -63,7 +70,7 @@ struct UpdateQuantityJob: ScheduledJob {
 
                                             let emailContent: String
                                             let emailTitle: String
-                                            let subscription = try? item.joined(SellerItemSubscription.self)
+                                            let subscription = subscriptions.first(where: { $0.$item.id == item.id })
                                             if isInStock {
                                                 emailTitle = "✅ item Available!"
                                                 emailContent = """
