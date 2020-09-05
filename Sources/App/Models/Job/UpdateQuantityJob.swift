@@ -54,7 +54,7 @@ struct UpdateQuantityJob: ScheduledJob {
                             let itemRepository = DatabaseItemRepository(db: context.application.db)
                             let allPromises: [EventLoopFuture<Void>] = validItems.map { (item: Item) in
                                 return clientEbayRepository.getItemDetails(ebayItemID: item.itemID)
-                                    .flatMap { (output: EbayAPIItemOutput) -> EventLoopFuture<(Item, Bool)> in
+                                    .flatMap { (output: EbayAPIItemOutput) -> EventLoopFuture<(Item, Bool, String)> in
                                         let isOutOfStock = output.quantityLeft == "0"
                                         let changedToAvailable = !isOutOfStock && item.lastKnownAvailability != true
                                         let changedToUnavailable = isOutOfStock && item.lastKnownAvailability != false
@@ -62,8 +62,8 @@ struct UpdateQuantityJob: ScheduledJob {
                                         item.lastKnownAvailability = !isOutOfStock
                                         return itemRepository
                                             .save(item: item)
-                                            .transform(to: (item, shouldNotify))
-                                    }.tryFlatMap { item, shouldNotify in
+                                            .transform(to: (item, shouldNotify, output.quantityLeft ?? "N/A"))
+                                    }.tryFlatMap { item, shouldNotify, quantityLeft in
                                         if shouldNotify {
                                             let isInStock = item.lastKnownAvailability == true
                                             let appFrontendURL = context.application.appFrontendURL ?? ""
@@ -74,7 +74,7 @@ struct UpdateQuantityJob: ScheduledJob {
                                             if isInStock {
                                                 emailTitle = "✅ item Available!"
                                                 emailContent = """
-                                                <p>Item <a href="\(item.itemURL)">\(subscription?.customName ?? item.name ?? item.itemURL)</a> đã có hàng. Truy cập <a href="\(appFrontendURL)">link</a> để đặt hàng ngay.</p>
+                                                <p>Item <a href="\(item.itemURL)">\(subscription?.customName ?? item.name ?? item.itemURL)</a> đã có hàng (số lượng: \(quantityLeft). Truy cập <a href="\(appFrontendURL)">link</a> để đặt hàng ngay.</p>
                                                 """
                                             } else {
                                                 emailTitle = "⛔️ item Outstock!"
