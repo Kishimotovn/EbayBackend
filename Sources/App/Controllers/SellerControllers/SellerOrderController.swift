@@ -23,6 +23,7 @@ struct SellerOrderController: RouteCollection {
         groupedRoutes.put("itemSubscriptions", SellerItemSubscription.parameterPath, use: updateItemSubscriptionHandler)
         groupedRoutes.delete("itemSubscriptions", Item.parameterPath, use: deleteItemSubscriptionHandler)
         groupedRoutes.get("itemSubscriptions", "lastFetch", use: getLastJobMonitoringHandler)
+        groupedRoutes.post("itemSubscriptions", "forceItemSubscription", use: forceSubscriptionHandler)
 
         groupedRoutes.put("orderOptions", use: updateSTDRateHandler)
         groupedRoutes.put("seller", use: updateSellerHandler)
@@ -41,6 +42,42 @@ struct SellerOrderController: RouteCollection {
             validated.get(Order.parameterPath, OrderItem.parameterPath, "receipts", OrderItemReceipt.parameterPath, "image", use: getReceiptImage)
             validated.delete(Order.parameterPath, OrderItem.parameterPath, "receipts", OrderItemReceipt.parameterPath, use: deleteReceiptHandler)
             validated.put(Order.parameterPath, OrderItem.parameterPath, "receipts", OrderItemReceipt.parameterPath, use: updateReceiptHandler)
+        }
+    }
+
+    private func forceSubscriptionHandler(request: Request) throws -> EventLoopFuture<Item> {
+        guard let masterSellerID = request.application.masterSellerID else {
+            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
+        }
+
+        let input = try request.content.decode(ForceItemSubscriptionInput.self)
+        let sellerFuture = request.sellers.find(id: masterSellerID)
+            .unwrap(or: Abort(.notFound, reason: "Yêu cầu không hợp lệ"))
+
+        let addedItemFuture = request.items
+            .find(itemID: input.itemID)
+            .map { (item: Item?) -> Item in
+                if let existingItem = item {
+                    return existingItem
+                } else {
+                    return Item(itemID: input.itemID)
+                }
+            }.flatMap { item -> EventLoopFuture<Item> in
+                item.itemURL = input.itemURL
+                item.lastKnownAvailability = false
+                return request
+                    .items
+                    .save(item: item)
+                    .transform(to: item)
+            }
+
+        return sellerFuture
+            .and(addedItemFuture)
+            .flatMap { seller, item in
+                return seller.$subscribedItems.attach(item,
+                                                      method: .ifNotExists,
+                                                      on: request.db)
+                .transform(to: item)
         }
     }
 
