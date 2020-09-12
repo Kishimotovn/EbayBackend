@@ -74,7 +74,7 @@ struct UpdateQuantityJob: ScheduledJob {
                                             if isInStock {
                                                 emailTitle = "✅ item Available!"
                                                 emailContent = """
-                                                <p>Item <a href="\(item.itemURL)">\(subscription?.customName ?? item.name ?? item.itemURL)</a> đã có hàng (số lượng: \(quantityLeft). Truy cập <a href="\(appFrontendURL)">link</a> để đặt hàng ngay.</p>
+                                                <p>(\(quantityLeft)) <a href="\(item.itemURL)">\(subscription?.customName ?? item.name ?? item.itemURL)</a> đã có hàng. Truy cập <a href="\(appFrontendURL)">link</a> để đặt hàng ngay.</p>
                                                 """
                                             } else {
                                                 emailTitle = "⛔️ item Outstock!"
