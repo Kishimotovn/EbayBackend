@@ -33,6 +33,7 @@ struct BuyerOrderController: RouteCollection {
         buyerProtectedRoutes.delete("cart", OrderItem.parameterPath, use: deleteCartOrderItemHandler)
         buyerProtectedRoutes.put("cart", OrderItem.parameterPath, use: updateCartOrderItemHandler)
         buyerProtectedRoutes.post("addItemToCart", use: addItemToCartHandler)
+        buyerProtectedRoutes.post("addFeaturedItemToCart", use: addFeaturedItemToCartHandler)
         buyerProtectedRoutes.post("addItemsToCart", use: addItemsToCartHandler)
         buyerProtectedRoutes.get("cart", use: getCartOrderHandler)
         buyerProtectedRoutes.put("rearrangeOrderItem", use: rearrangeOrderItemHandler)
@@ -632,6 +633,77 @@ struct BuyerOrderController: RouteCollection {
                 }.unwrap(or: Abort(.internalServerError, reason: "Lỗi hệ thống"))
     }
 
+    private func addFeaturedItemToCartHandler(request: Request) throws -> EventLoopFuture<Order> {
+        let input = try request.content.decode(AddFeaturedItemToCardInput.self)
+        let buyer = try request.auth.require(Buyer.self)
+
+        let cartOrderFuture = try request.orders
+            .getCartOrder(of: buyer.requireID())
+            .flatMapThrowing { cartOrder -> Order in
+                if let existingOrder = cartOrder {
+                    return existingOrder
+                } else {
+                    let newOrder = try Order(buyerID: buyer.requireID())
+                    newOrder.$seller.id = request.application.masterSellerID
+                    return newOrder
+                }
+        }.flatMap { order in
+            return request.orders
+                .save(order: order)
+                .transform(to: order)
+        }.flatMap { order in
+            return order.$orderItems
+                .load(on: request.db)
+                .transform(to: order)
+        }
+
+        let featuredItemFuture = request
+            .sellerItemFeatured
+            .find(sellerItemFeaturedID: input.featuredItemID)
+            .unwrap(or: Abort(.badRequest, reason: "Yêu cầu không hợp lệ"))
+        
+        return cartOrderFuture
+        .and(featuredItemFuture)
+        .tryFlatMap { order, featuredItem in
+            return try request
+                .orderItems
+                .find(itemID: featuredItem.$item.id,
+                      orderID: order.requireID())
+                .flatMapThrowing { pivot -> OrderItem in
+                    if let existingPivot = pivot {
+                        return existingPivot
+                    } else {
+                        let highestIndex = order.orderItems.sorted { lhs, rhs in
+                            return lhs.index > rhs.index
+                            }.first?.index ?? -1
+                        return try OrderItem(orderID: order.requireID(),
+                                             itemID: featuredItem.$item.id,
+                                             index: highestIndex + 1,
+                                             quantity: 0)
+                    }
+                }.flatMap { pivot -> EventLoopFuture<Void> in
+                    pivot.quantity += 1
+                    pivot.itemEndDate = featuredItem.itemEndDate
+                    pivot.furtherDiscountAmount = featuredItem.furtherDiscountAmount
+                    pivot.furtherDiscountDetected = featuredItem.furtherDiscountDetected
+                    pivot.volumeDiscounts = featuredItem.volumeDiscounts
+                    pivot.acceptedPrice = featuredItem.item.originalPrice
+                    if let volumeDiscount = featuredItem.volumeDiscounts?.first(where: {
+                        $0.quantity == pivot.quantity
+                    }) {
+                        pivot.acceptedPrice = volumeDiscount.afterDiscountItemPrice
+                    }
+                    return request
+                        .orderItems
+                        .save(orderItem: pivot)
+                }
+        }.flatMap { _ -> EventLoopFuture<Order?> in
+            return request
+                .orders
+                .getCartOrder(of: buyer.id!)
+        }.unwrap(or: Abort(.internalServerError, reason: "Lỗi hệ thống"))
+    }
+
     private func addItemToCartHandler(request: Request) throws -> EventLoopFuture<Order> {
         let input = try request.content.decode(AddItemToCartInput.self)
         let buyer = try request.auth.require(Buyer.self)
@@ -713,7 +785,7 @@ struct BuyerOrderController: RouteCollection {
                 pivot.volumeDiscounts = input.volumeDiscounts
                 pivot.acceptedPrice = input.originalPrice
                 if let volumeDiscount = input.volumeDiscounts?.first(where: {
-                    $0.quantity == input.quantity
+                    $0.quantity == pivot.quantity
                 }) {
                     pivot.acceptedPrice = volumeDiscount.afterDiscountItemPrice
                 }

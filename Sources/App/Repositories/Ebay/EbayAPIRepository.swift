@@ -11,6 +11,7 @@ import Fluent
 import SwiftSoup
 
 protocol EbayAPIRepository {
+    func getItemDetails(seller: String, keyword: String, offset: Int) -> EventLoopFuture<EbayAPIItemListOutput>
     func getItemDetails(itemID: String) -> EventLoopFuture<EbayAPIItemOutput>
     func getItemDetails(ebayItemID: String) -> EventLoopFuture<EbayAPIItemOutput>
 }
@@ -31,6 +32,85 @@ class ClientEbayAPIRepository: EbayAPIRepository {
         self.ebayAppSecret = ebayAppSecret
     }
 
+    func getItemDetails(seller: String, keyword: String, offset: Int) -> EventLoopFuture<EbayAPIItemListOutput> {
+        return self.refreshTokenToken()
+        .flatMap { () -> EventLoopFuture<ClientResponse> in
+            let url = URI(
+                scheme: "https",
+                host: "api.ebay.com",
+                path: "buy/browse/v1/item_summary/search")
+            return self.client.get(
+                url,
+                headers: [
+                    "Accept": "application/json",
+                    "X-EBAY-C-MARKETPLACE-ID": "EBAY_US",
+                    "Authorization": "Bearer \(self.currentToken?.accessToken ?? "")"
+            ]) { (request: inout ClientRequest) throws in
+                let input = EbaySearchItemInput(q: keyword, includedSellers: [seller], offset: offset)
+                try request.query.encode(input)
+            }
+        }.tryFlatMap { (response: ClientResponse) -> EventLoopFuture<EbayAPIItemListOutput> in
+            let ebayResponse = try response.content.decode(EbayItemSearchResponse.self)
+            guard let summaries = ebayResponse.itemSummaries, !summaries.isEmpty else {
+                return self.client.eventLoop.makeSucceededFuture(EbayAPIItemListOutput(
+                    items: [],
+                    offset: ebayResponse.offset,
+                    limit: ebayResponse.limit,
+                    total: ebayResponse.total))
+            }
+            
+            let itemIDs = summaries.map{ $0.itemId }
+            return itemIDs.map {
+                return self.getItemDetails(ebayItemID: $0)
+            }.flatten(on: self.client.eventLoop)
+            .map { items in
+                return EbayAPIItemListOutput(
+                    items: items,
+                    offset: ebayResponse.offset,
+                    limit: ebayResponse.limit,
+                    total: ebayResponse.total)
+            }
+        }
+//            .flatMap { items in
+//            let mapFn = { (item: EbayItemSummaryResponse) -> EbayAPIItemOutput in
+//                let shippingPrice = item.shippingOptions?.first?.shippingCost?.value?.currencyValue() ?? 0.0
+//                let normalizedShippingPrice = Int(truncating: (shippingPrice * 100) as NSNumber)
+//                let itemPrice = item.price.value?.currencyValue() ?? 0.0
+//                let normalizedOriginalPrice = Int(truncating: (itemPrice * 100.0) as NSNumber)
+//                var directDiscount: Int?
+//                if let discountAmmount = item.marketingPrice?.discountAmount?.value?.currencyValue() {
+//                    directDiscount = Int(truncating: (discountAmmount * 100) as NSNumber)
+//                }
+//
+//                let quantityLeft = "N/A"
+//                return EbayAPIItemOutput(
+//                    itemID: item.itemId,
+//                    name: item.title,
+//                    imageURL: item.image.imageUrl,
+//                    itemURL: item.itemWebUrl,
+//                    condition: item.condition,
+//                    shippingPrice: normalizedShippingPrice,
+//                    originalPrice: normalizedOriginalPrice,
+//                    sellerName: item.seller.username,
+//                    sellerFeedbackCount: item.seller.feedbackScore,
+//                    sellerScore: Double(item.seller.feedbackPercentage),
+//                    itemEndDate: nil,
+//                    quantityLeft: quantityLeft,
+//                    volumeDiscounts: nil,
+//                    furtherDiscountAmount: directDiscount,
+//                    furtherDiscountDetected: directDiscount != nil
+//                )
+//            }
+//
+//            let items = summaries.map(mapFn)
+//            return EbayAPIItemListOutput(
+//                items: items,
+//                offset: ebayResponse.offset,
+//                limit: ebayResponse.limit,
+//                total: ebayResponse.total)
+//        }
+    }
+
     func getItemDetails(ebayItemID: String) -> EventLoopFuture<EbayAPIItemOutput> {
         return self.refreshTokenToken()
             .flatMap { () -> EventLoopFuture<ClientResponse> in
@@ -48,7 +128,7 @@ class ClientEbayAPIRepository: EbayAPIRepository {
             }
         .tryFlatMap { response throws -> EventLoopFuture<EbayAPIItemOutput> in
             let item = try response.content.decode(EbayGetItemResponse.self)
-            let shippingPrice = item.shippingOptions.first?.shippingCost.value?.currencyValue() ?? 0.0
+            let shippingPrice = item.shippingOptions.first?.shippingCost?.value?.currencyValue() ?? 0.0
 
             let normalizedShippingPrice = Int(truncating: (shippingPrice * 100) as NSNumber)
 
@@ -339,26 +419,50 @@ struct EbaySearchItemInput: Content {
     var q: String?
     var epid: String?
     var filter: String = "buyingOptions:{FIXED_PRICE},itemLocationCountry:US"
+    var offset: String?
+    var limit: Int = 10
 
     init(q: String? = nil,
          epid: String? = nil,
-         excludedSellers: [String]? = nil) {
+         excludedSellers: [String]? = nil,
+         includedSellers: [String]? = nil,
+         offset: Int? = nil) {
         self.q = q
         self.epid = epid
+        var filters = [
+            "buyingOptions:{FIXED_PRICE}",
+            "itemLocationCountry:US"
+        ]
         if let sellers = excludedSellers, !sellers.isEmpty {
-            self.filter = "buyingOptions:{FIXED_PRICE},itemLocationCountry:US,excludeSellers:{\(sellers.joined(separator: "|"))}"
-        } else {
-            self.filter = "buyingOptions:{FIXED_PRICE},itemLocationCountry:US"
+            filters.append("excludeSellers:{\(sellers.joined(separator: "|"))}")
+        }
+        if let sellers = includedSellers, !sellers.isEmpty {
+            filters.append("sellers:{\(sellers.joined(separator: "|"))}")
+        }
+        self.filter = filters.joined(separator: ",")
+        if let offset = offset {
+            self.offset = "\(offset)"
         }
     }
 }
 
 struct EbayItemSearchResponse: Content {
     var itemSummaries: [EbayItemSummaryResponse]?
+    var offset: Int
+    var limit: Int
+    var total: Int
 }
 
 struct EbayItemSummaryResponse: Content {
     var itemId: String
+    var title: String
+    var image: EbayGetItemResponse.Image
+    var condition: String?
+    var itemWebUrl: String
+    var price: EbayGetItemResponse.ConvertedAmount
+    var seller: EbayGetItemResponse.SellerDetail
+    var shippingOptions: [EbayGetItemResponse.ShippingOption]?
+    var marketingPrice: EbayGetItemResponse.MarketingPrice?
 }
 
 struct EbayClientCredentialsForm: Content {
@@ -443,10 +547,10 @@ extension EbayGetItemResponse {
         var minEstimatedDeliveryDate: String?
         var quantityUsedForEstimate: Int?
         var shippingCarrierCode: String?
-        var shippingCost: ConvertedAmount
-        var shippingCostType: String
-        var shippingServiceCode: String
-        var type: String
+        var shippingCost: ConvertedAmount?
+        var shippingCostType: String?
+        var shippingServiceCode: String?
+        var type: String?
     }
 
     struct SellerDetail: Content {

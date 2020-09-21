@@ -18,4 +18,5 @@ func routes(_ app: Application) throws {
     try versionedRoutes.register(collection: OrderMetadataController())
     try versionedRoutes.register(collection: SellerOrderController())
     try versionedRoutes.register(collection: SellerBuyerController())
+    try versionedRoutes.register(collection: SellerFeaturedController())
 }

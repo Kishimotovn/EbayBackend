@@ -15,6 +15,7 @@ struct OrderMetadataController: RouteCollection {
 
         groupedRoutes.get("orderOptions", use: getOrderOptionsHandler)
         groupedRoutes.get("ebayItemInformation", use: getEbayItemInformationHandler)
+        groupedRoutes.get("searchBySeller", use: searchItemsBySellerHandler)
     }
 
     private func getEbayItemInformationHandler(request: Request) throws -> EventLoopFuture<EbayAPIItemOutput> {
@@ -26,5 +27,13 @@ struct OrderMetadataController: RouteCollection {
         return request
             .orderOptions
             .all()
+    }
+
+    private func searchItemsBySellerHandler(request: Request) throws -> EventLoopFuture<EbayAPIItemListOutput> {
+        let input = try request.query.decode(SearchEbayItemsBySellerInput.self)
+        return request.ebayAPIs.getItemDetails(
+            seller: input.seller,
+            keyword: input.keyword,
+            offset: Int(input.itemOffset) ?? 0)
     }
 }
