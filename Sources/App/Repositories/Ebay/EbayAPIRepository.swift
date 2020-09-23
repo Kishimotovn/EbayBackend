@@ -50,6 +50,7 @@ class ClientEbayAPIRepository: EbayAPIRepository {
                 try request.query.encode(input)
             }
         }.tryFlatMap { (response: ClientResponse) -> EventLoopFuture<EbayAPIItemListOutput> in
+            self.application.scanCount += 1
             let ebayResponse = try response.content.decode(EbayItemSearchResponse.self)
             guard let summaries = ebayResponse.itemSummaries, !summaries.isEmpty else {
                 return self.client.eventLoop.makeSucceededFuture(EbayAPIItemListOutput(
@@ -127,6 +128,7 @@ class ClientEbayAPIRepository: EbayAPIRepository {
                 ])
             }
         .tryFlatMap { response throws -> EventLoopFuture<EbayAPIItemOutput> in
+            self.application.scanCount += 1
             let item = try response.content.decode(EbayGetItemResponse.self)
             let shippingPrice = item.shippingOptions.first?.shippingCost?.value?.currencyValue() ?? 0.0
 
@@ -291,6 +293,7 @@ class ClientEbayAPIRepository: EbayAPIRepository {
                 "X-EBAY-C-MARKETPLACE-ID": "EBAY_US",
                 "Authorization": "Bearer \(self.currentToken?.accessToken ?? "")"
         ]) { (request: inout ClientRequest) throws in
+            self.application.scanCount += 1
             let input = EbaySearchItemInput(epid: epid, excludedSellers: self.application.masterSellerAvoidedSellers)
             try request.query.encode(input)
         }.flatMapThrowing { (response: ClientResponse) throws in
@@ -314,6 +317,7 @@ class ClientEbayAPIRepository: EbayAPIRepository {
                                     "X-EBAY-C-MARKETPLACE-ID": "EBAY_US",
                                     "Authorization": "Bearer \(self.currentToken?.accessToken ?? "")"
         ]) { (request: inout ClientRequest) throws in
+            self.application.scanCount += 1
             let input = EbaySearchLegacyItemInput(legacyItemID: itemID)
             try request.query.encode(input)
         }.map { (response: ClientResponse) in
@@ -343,6 +347,7 @@ class ClientEbayAPIRepository: EbayAPIRepository {
                 "X-EBAY-C-MARKETPLACE-ID": "EBAY_US",
                 "Authorization": "Bearer \(self.currentToken?.accessToken ?? "")"
         ]) { (request: inout ClientRequest) throws in
+            self.application.scanCount += 1
             let input = EbaySearchItemInput(q: itemID, excludedSellers: self.application.masterSellerAvoidedSellers)
             try request.query.encode(input)
         }.flatMapThrowing { (response: ClientResponse) throws in
@@ -377,8 +382,6 @@ class ClientEbayAPIRepository: EbayAPIRepository {
         if self.application.secretIndex >= ids.count {
             self.application.secretIndex = 0
         }
-        
-        print("picking from index: \(self.application.secretIndex)")
         
         let choosenID = ids.get(at: self.application.secretIndex) ?? ""
         let choosenSecret = secrets.get(at: self.application.secretIndex) ?? ""

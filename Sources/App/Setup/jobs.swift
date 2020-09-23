@@ -12,10 +12,16 @@ import Queues
 
 public func jobs(app: Application) throws {
     let emailJob = EmailJob()
-    app.queues.add(emailJob)
+    app.queues
+        .add(emailJob)
     app.queues
         .schedule(UpdateQuantityJob())
         .minutely()
         .at(0)
-    try app.queues.startInProcessJobs(on: .default)
+    app.queues
+        .schedule(ResetScanCountJob())
+        .daily()
+        .at(.midnight)
+    try app.queues
+        .startInProcessJobs(on: .default)
 }

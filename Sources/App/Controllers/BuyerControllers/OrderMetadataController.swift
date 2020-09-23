@@ -16,6 +16,11 @@ struct OrderMetadataController: RouteCollection {
         groupedRoutes.get("orderOptions", use: getOrderOptionsHandler)
         groupedRoutes.get("ebayItemInformation", use: getEbayItemInformationHandler)
         groupedRoutes.get("searchBySeller", use: searchItemsBySellerHandler)
+        groupedRoutes.get("scanCount", use: getScanCountHandler)
+    }
+
+    private func getScanCountHandler(request: Request) throws -> Int {
+        return request.application.scanCount
     }
 
     private func getEbayItemInformationHandler(request: Request) throws -> EventLoopFuture<EbayAPIItemOutput> {
