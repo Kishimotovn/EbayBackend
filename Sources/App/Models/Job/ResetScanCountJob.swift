@@ -11,7 +11,7 @@ import Queues
 
 struct ResetScanCountJob: ScheduledJob {
     func run(context: QueueContext) -> EventLoopFuture<Void> {
-        context.application.scanCount = 0
-        return context.eventLoop.future()
+        let appMetaDatas = DatabaseAppMetadataRepository(db: context.application.db)
+        return appMetaDatas.setScanCount(0)
     }
 }

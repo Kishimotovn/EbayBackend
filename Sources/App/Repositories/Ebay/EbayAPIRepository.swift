@@ -24,6 +24,9 @@ class ClientEbayAPIRepository: EbayAPIRepository {
     var tokenExpiryDate: Date?
     var currentToken: EbayToken?
     var currentRefreshTokenCall: EventLoopFuture<Void>?
+    lazy var appMetaDatas = {
+        return DatabaseAppMetadataRepository(db: self.application.db)
+    }()
 
     init(application: Application, client: Client, ebayAppID: String, ebayAppSecret: String) {
         self.application = application
@@ -50,21 +53,23 @@ class ClientEbayAPIRepository: EbayAPIRepository {
                 try request.query.encode(input)
             }
         }.tryFlatMap { (response: ClientResponse) -> EventLoopFuture<EbayAPIItemListOutput> in
-            self.application.scanCount += 1
             let ebayResponse = try response.content.decode(EbayItemSearchResponse.self)
             guard let summaries = ebayResponse.itemSummaries, !summaries.isEmpty else {
-                return self.client.eventLoop.makeSucceededFuture(EbayAPIItemListOutput(
-                    items: [],
-                    offset: ebayResponse.offset,
-                    limit: ebayResponse.limit,
-                    total: ebayResponse.total))
+                return self.appMetaDatas.incrementScanCount().map {
+                    EbayAPIItemListOutput(
+                        items: [],
+                        offset: ebayResponse.offset,
+                        limit: ebayResponse.limit,
+                        total: ebayResponse.total)
+                }
             }
             
             let itemIDs = summaries.map{ $0.itemId }
-            return itemIDs.map {
-                return self.getItemDetails(ebayItemID: $0)
-            }.flatten(on: self.client.eventLoop)
-            .map { items in
+            return self.appMetaDatas.incrementScanCount().flatMap {
+                return itemIDs.map {
+                    return self.getItemDetails(ebayItemID: $0)
+                }.flatten(on: self.client.eventLoop)
+            }.map { items in
                 return EbayAPIItemListOutput(
                     items: items,
                     offset: ebayResponse.offset,
@@ -72,44 +77,6 @@ class ClientEbayAPIRepository: EbayAPIRepository {
                     total: ebayResponse.total)
             }
         }
-//            .flatMap { items in
-//            let mapFn = { (item: EbayItemSummaryResponse) -> EbayAPIItemOutput in
-//                let shippingPrice = item.shippingOptions?.first?.shippingCost?.value?.currencyValue() ?? 0.0
-//                let normalizedShippingPrice = Int(truncating: (shippingPrice * 100) as NSNumber)
-//                let itemPrice = item.price.value?.currencyValue() ?? 0.0
-//                let normalizedOriginalPrice = Int(truncating: (itemPrice * 100.0) as NSNumber)
-//                var directDiscount: Int?
-//                if let discountAmmount = item.marketingPrice?.discountAmount?.value?.currencyValue() {
-//                    directDiscount = Int(truncating: (discountAmmount * 100) as NSNumber)
-//                }
-//
-//                let quantityLeft = "N/A"
-//                return EbayAPIItemOutput(
-//                    itemID: item.itemId,
-//                    name: item.title,
-//                    imageURL: item.image.imageUrl,
-//                    itemURL: item.itemWebUrl,
-//                    condition: item.condition,
-//                    shippingPrice: normalizedShippingPrice,
-//                    originalPrice: normalizedOriginalPrice,
-//                    sellerName: item.seller.username,
-//                    sellerFeedbackCount: item.seller.feedbackScore,
-//                    sellerScore: Double(item.seller.feedbackPercentage),
-//                    itemEndDate: nil,
-//                    quantityLeft: quantityLeft,
-//                    volumeDiscounts: nil,
-//                    furtherDiscountAmount: directDiscount,
-//                    furtherDiscountDetected: directDiscount != nil
-//                )
-//            }
-//
-//            let items = summaries.map(mapFn)
-//            return EbayAPIItemListOutput(
-//                items: items,
-//                offset: ebayResponse.offset,
-//                limit: ebayResponse.limit,
-//                total: ebayResponse.total)
-//        }
     }
 
     func getItemDetails(ebayItemID: String) -> EventLoopFuture<EbayAPIItemOutput> {
@@ -128,7 +95,6 @@ class ClientEbayAPIRepository: EbayAPIRepository {
                 ])
             }
         .tryFlatMap { response throws -> EventLoopFuture<EbayAPIItemOutput> in
-            self.application.scanCount += 1
             let item = try response.content.decode(EbayGetItemResponse.self)
             let shippingPrice = item.shippingOptions.first?.shippingCost?.value?.currencyValue() ?? 0.0
 
@@ -167,7 +133,12 @@ class ClientEbayAPIRepository: EbayAPIRepository {
                                             from: normalizedOriginalPrice)
             }
 
-            return furtherDiscountAmount.map { directDiscount, volumeDiscounts in
+            return self
+                .appMetaDatas
+                .incrementScanCount()
+                .flatMap {
+                    return furtherDiscountAmount
+                }.map { directDiscount, volumeDiscounts in
                 let detected = (directDiscount != nil && directDiscount! > 0) || (volumeDiscounts?.isEmpty == false)
                 return EbayAPIItemOutput(
                     itemID: item.itemId,
@@ -293,16 +264,15 @@ class ClientEbayAPIRepository: EbayAPIRepository {
                 "X-EBAY-C-MARKETPLACE-ID": "EBAY_US",
                 "Authorization": "Bearer \(self.currentToken?.accessToken ?? "")"
         ]) { (request: inout ClientRequest) throws in
-            self.application.scanCount += 1
             let input = EbaySearchItemInput(epid: epid, excludedSellers: self.application.masterSellerAvoidedSellers)
             try request.query.encode(input)
-        }.flatMapThrowing { (response: ClientResponse) throws in
+        }.tryFlatMap { (response: ClientResponse) throws in
             let ebayResponse = try response.content.decode(EbayItemSearchResponse.self)
             guard let summaries = ebayResponse.itemSummaries, !summaries.isEmpty else {
-                return nil
+                return self.appMetaDatas.incrementScanCount().transform(to: nil)
             }
 
-            return summaries.first!.itemId
+            return self.appMetaDatas.incrementScanCount().transform(to: summaries.first!.itemId)
         }
     }
 
@@ -317,20 +287,19 @@ class ClientEbayAPIRepository: EbayAPIRepository {
                                     "X-EBAY-C-MARKETPLACE-ID": "EBAY_US",
                                     "Authorization": "Bearer \(self.currentToken?.accessToken ?? "")"
         ]) { (request: inout ClientRequest) throws in
-            self.application.scanCount += 1
             let input = EbaySearchLegacyItemInput(legacyItemID: itemID)
             try request.query.encode(input)
-        }.map { (response: ClientResponse) in
+        }.flatMap { (response: ClientResponse) in
             do {
                 let ebayResponse = try response.content.decode(EbayGetItemResponse.self)
                 if self.application.masterSellerAvoidedSellers?.contains(ebayResponse.seller.username) == true {
-                    return nil
+                    return self.appMetaDatas.incrementScanCount().transform(to: nil)
                 } else {
-                    return ebayResponse.itemId
+                    return self.appMetaDatas.incrementScanCount().transform(to: ebayResponse.itemId)
                 }
             } catch let error {
                 print("search legacy error", error)
-                return nil
+                return self.appMetaDatas.incrementScanCount().transform(to: nil)
             }
         }
     }
@@ -347,16 +316,15 @@ class ClientEbayAPIRepository: EbayAPIRepository {
                 "X-EBAY-C-MARKETPLACE-ID": "EBAY_US",
                 "Authorization": "Bearer \(self.currentToken?.accessToken ?? "")"
         ]) { (request: inout ClientRequest) throws in
-            self.application.scanCount += 1
             let input = EbaySearchItemInput(q: itemID, excludedSellers: self.application.masterSellerAvoidedSellers)
             try request.query.encode(input)
-        }.flatMapThrowing { (response: ClientResponse) throws in
+        }.tryFlatMap { (response: ClientResponse) throws in
             let ebayResponse = try response.content.decode(EbayItemSearchResponse.self)
             guard let summaries = ebayResponse.itemSummaries, !summaries.isEmpty else {
-                return nil
+                return self.appMetaDatas.incrementScanCount().transform(to: nil)
             }
 
-            return summaries.first!.itemId
+            return self.appMetaDatas.incrementScanCount().transform(to: summaries.first!.itemId)
         }
     }
 

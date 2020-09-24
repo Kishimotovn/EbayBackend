@@ -71,6 +71,9 @@ public func setupRepositories(app: Application) throws {
         return DatabaseSellerTokenRepository(db: req.db)
     }
     app.sellerItemFeatured.use { DatabaseSellerItemFeaturedRepository(db: $0.db) }
+    app.appMetadatas.use {
+        DatabaseAppMetadataRepository(db: $0.db)
+    }
 
     app.ebayAppID = Environment.process.EBAY_APP_ID
     app.ebayAppSecret = Environment.process.EBAY_APP_SECRET

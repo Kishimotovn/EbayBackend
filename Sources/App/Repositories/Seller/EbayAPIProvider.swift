@@ -24,16 +24,7 @@ struct ScanInterval: StorageKey {
     typealias Value = Int
 }
 
-struct ScanCount: StorageKey {
-    typealias Value = Int
-}
-
 extension Application {
-    var scanCount: Int {
-        get { self.storage[ScanCount.self] ?? 0 }
-        set { self.storage[ScanCount.self] = newValue }
-    }
-
     var ebayAppID: String? {
         get { self.storage[EbayAppID.self] }
         set { self.storage[EbayAppID.self] = newValue }
