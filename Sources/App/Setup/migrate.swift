@@ -37,4 +37,6 @@ public func migrate(app: Application) throws {
     app.migrations.add(AddCustomNameToSellerItemSubscription())
     app.migrations.add(CreateSellerItemFeatured())
     app.migrations.add(AddAppMetadata())
+    app.migrations.add(AddIsFromFeaturedToOrderItem())
+    app.migrations.add(AddPriceToSellerItemFeatured())
 }

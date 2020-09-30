@@ -27,4 +27,5 @@ struct ItemFeaturedInput: Content {
     var furtherDiscountAmount: Int?
     var volumeDiscounts: [VolumeDiscount]?
     var furtherDiscountDetected: Bool
+    var price: Int?
 }

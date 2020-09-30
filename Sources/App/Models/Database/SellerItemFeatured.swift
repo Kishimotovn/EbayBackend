@@ -42,6 +42,9 @@ final class SellerItemFeatured: Model, Content {
     @OptionalField(key: "item_end_date")
     var itemEndDate: Date?
 
+    @OptionalField(key: "price")
+    var price: Int?
+
     init() { }
 
     init(sellerID: Seller.IDValue,
@@ -49,13 +52,15 @@ final class SellerItemFeatured: Model, Content {
          volumeDiscounts: [VolumeDiscount]?,
          furtherDiscountAmount: Int?,
          furtherDiscountDetected: Bool,
-         itemEndDate: Date?) {
+         itemEndDate: Date?,
+         price: Int?) {
         self.$seller.id = sellerID
         self.$item.id = itemID
         self.volumeDiscounts = volumeDiscounts
         self.furtherDiscountAmount = furtherDiscountAmount
         self.furtherDiscountDetected = furtherDiscountDetected
         self.itemEndDate = itemEndDate
+        self.price = price
     }
 }
 

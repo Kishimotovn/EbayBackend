@@ -15,12 +15,28 @@ struct SellerFeaturedController: RouteCollection {
         groupedRoutes.post(use: createItemFeaturedHandler)
         groupedRoutes.get(use: getItemFeaturedHandler)
         groupedRoutes.delete(SellerItemFeatured.parameterPath, use: deleteHandler)
+        groupedRoutes.put(SellerItemFeatured.parameterPath, use: updateFeaturedItemHandler)
+    }
+
+    private func updateFeaturedItemHandler(request: Request) throws -> EventLoopFuture<SellerItemFeatured> {
+        guard let _ = request.application.masterSellerID,
+              let sellerItemFeaturedID = request.parameters.get(SellerItemFeatured.parameter, as: SellerItemFeatured.IDValue.self) else {
+            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
+        }
+        let input = try request.content.decode(UpdateSellerItemFeaturedInput.self)
+
+        return request.sellerItemFeatured
+            .find(sellerItemFeaturedID: sellerItemFeaturedID)
+            .unwrap(or: Abort(.notFound, reason: "Yêu cầu không hợp lệ"))
+            .flatMap { item in
+                item.price = input.price
+                return request.sellerItemFeatured.save(sellerItemFeatured: item).transform(to: item)
+            }
     }
 
     private func deleteHandler(request: Request) throws -> EventLoopFuture<[SellerItemFeatured]> {
         guard
             let masterSellerID = request.application.masterSellerID,
-            let _ = request.application.masterSellerID,
             let sellerItemFeaturedID = request.parameters.get(SellerItemFeatured.parameter, as: SellerItemFeatured.IDValue.self)
         else {
             throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
@@ -52,7 +68,7 @@ struct SellerFeaturedController: RouteCollection {
         let input = try request.content.decode(CreateItemFeaturedInput.self)
         let sellerFuture = request.sellers.find(id: masterSellerID)
             .unwrap(or: Abort(.notFound, reason: "Yêu cầu không hợp lệ"))
-        
+
         let addedItemFutures = input.items
             .map { itemInput in
                 return request.items
@@ -95,6 +111,7 @@ struct SellerFeaturedController: RouteCollection {
                                 pivot.volumeDiscounts = inputItem.volumeDiscounts
                                 pivot.furtherDiscountDetected = inputItem.furtherDiscountDetected
                                 pivot.itemEndDate = inputItem.itemEndDate
+                                pivot.price = inputItem.price
                             }
                     }
                 }.flatten(on: request.eventLoop)

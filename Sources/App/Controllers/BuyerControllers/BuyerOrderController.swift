@@ -615,6 +615,7 @@ struct BuyerOrderController: RouteCollection {
                                     pivot.furtherDiscountDetected = inputItem.furtherDiscountDetected
                                     pivot.volumeDiscounts = inputItem.volumeDiscounts
                                     pivot.acceptedPrice = inputItem.originalPrice
+                                    pivot.isFromFeatured = inputItem.isFromFeatured ?? false
                                     if let volumeDiscount = inputItem.volumeDiscounts?.first(where: {
                                         $0.quantity == inputItem.quantity
                                     }) {
@@ -688,6 +689,7 @@ struct BuyerOrderController: RouteCollection {
                     pivot.furtherDiscountDetected = featuredItem.furtherDiscountDetected
                     pivot.volumeDiscounts = featuredItem.volumeDiscounts
                     pivot.acceptedPrice = featuredItem.item.originalPrice
+                    pivot.isFromFeatured = true
                     if let volumeDiscount = featuredItem.volumeDiscounts?.first(where: {
                         $0.quantity == pivot.quantity
                     }) {
@@ -784,6 +786,7 @@ struct BuyerOrderController: RouteCollection {
                 pivot.furtherDiscountDetected = input.furtherDiscountDetected
                 pivot.volumeDiscounts = input.volumeDiscounts
                 pivot.acceptedPrice = input.originalPrice
+                pivot.isFromFeatured = input.isFromFeatured ?? false
                 if let volumeDiscount = input.volumeDiscounts?.first(where: {
                     $0.quantity == pivot.quantity
                 }) {

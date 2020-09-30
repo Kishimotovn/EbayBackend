@@ -49,6 +49,9 @@ final class OrderItem: Model, Content {
     @Field(key: "volumeDiscounts")
     var volumeDiscounts: [VolumeDiscount]?
 
+    @Field(key: "is_from_featured")
+    var isFromFeatured: Bool
+
     @Timestamp(key: "created_at", on: .create)
     var createdAt: Date?
 
@@ -66,7 +69,8 @@ final class OrderItem: Model, Content {
          itemEndDate: Date? = nil,
          furtherDiscountAmount: Int? = nil,
          isProcessed: Bool = false,
-         furtherDiscountDetected: Bool = false) {
+         furtherDiscountDetected: Bool = false,
+         isFromFeatured: Bool = false) {
         self.$order.id = orderID
         self.$item.id = itemID
         self.index = index
@@ -75,6 +79,7 @@ final class OrderItem: Model, Content {
         self.furtherDiscountAmount = furtherDiscountAmount
         self.isProcessed = isProcessed
         self.furtherDiscountDetected = furtherDiscountDetected
+        self.isFromFeatured = isFromFeatured
     }
 }
 

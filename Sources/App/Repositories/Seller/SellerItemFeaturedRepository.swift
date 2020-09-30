@@ -13,14 +13,20 @@ protocol SellerItemFeaturedRepository {
     func find(sellerItemFeaturedID: SellerItemFeatured.IDValue) -> EventLoopFuture<SellerItemFeatured?>
     func delete(sellerItemFeaturedID: SellerItemFeatured.IDValue) -> EventLoopFuture<Void>
     func find(sellerID: Seller.IDValue) -> EventLoopFuture<[SellerItemFeatured]>
+    func save(sellerItemFeatured: SellerItemFeatured) -> EventLoopFuture<Void>
 }
 
 struct DatabaseSellerItemFeaturedRepository: SellerItemFeaturedRepository {
     let db: Database
 
+    func save(sellerItemFeatured: SellerItemFeatured) -> EventLoopFuture<Void> {
+        return sellerItemFeatured.save(on: self.db)
+    }
+
     func find(sellerItemFeaturedID: SellerItemFeatured.IDValue) -> EventLoopFuture<SellerItemFeatured?> {
         return SellerItemFeatured.query(on: self.db)
             .filter(\.$id == sellerItemFeaturedID)
+            .with(\.$item)
             .first()
     }
 

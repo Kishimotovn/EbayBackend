@@ -24,4 +24,5 @@ struct AddItemToCartInput: Content {
     var furtherDiscountAmount: Int?
     var volumeDiscounts: [VolumeDiscount]?
     var furtherDiscountDetected: Bool
+    var isFromFeatured: Bool?
 }
