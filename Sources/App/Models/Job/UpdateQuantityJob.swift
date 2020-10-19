@@ -54,16 +54,17 @@ struct UpdateQuantityJob: ScheduledJob {
                             let itemRepository = DatabaseItemRepository(db: context.application.db)
                             let allPromises: [EventLoopFuture<Void>] = validItems.map { (item: Item) in
                                 return clientEbayRepository.getItemDetails(ebayItemID: item.itemID)
-                                    .flatMap { (output: EbayAPIItemOutput) -> EventLoopFuture<(Item, Bool, String)> in
+                                    .flatMap { (output: EbayAPIItemOutput) -> EventLoopFuture<(Item, Bool, String, Int)> in
                                         let isOutOfStock = output.quantityLeft == "0"
                                         let changedToAvailable = !isOutOfStock && item.lastKnownAvailability != true
                                         let changedToUnavailable = isOutOfStock && item.lastKnownAvailability != false
                                         let shouldNotify = changedToUnavailable || changedToAvailable
                                         item.lastKnownAvailability = !isOutOfStock
+                                        let price = (output.originalPrice + output.shippingPrice) - (output.furtherDiscountAmount ?? 0)
                                         return itemRepository
                                             .save(item: item)
-                                            .transform(to: (item, shouldNotify, output.quantityLeft ?? "N/A"))
-                                    }.tryFlatMap { item, shouldNotify, quantityLeft in
+                                            .transform(to: (item, shouldNotify, output.quantityLeft ?? "N/A", price))
+                                    }.tryFlatMap { item, shouldNotify, quantityLeft, price in
                                         if shouldNotify {
                                             let isInStock = item.lastKnownAvailability == true
                                             let appFrontendURL = context.application.appFrontendURL ?? ""
@@ -71,10 +72,11 @@ struct UpdateQuantityJob: ScheduledJob {
                                             let emailContent: String
                                             let emailTitle: String
                                             let subscription = subscriptions.first(where: { $0.$item.id == item.id })
+                                            let priceDouble = Double(price)/100
                                             if isInStock {
                                                 emailTitle = "✅ item Available!"
                                                 emailContent = """
-                                                <p>(\(quantityLeft)) <a href="\(item.itemURL)">\(subscription?.customName ?? item.name ?? item.itemURL)</a> đã có hàng. Truy cập <a href="\(appFrontendURL)">link</a> để đặt hàng ngay.</p>
+                                                <p>[\(quantityLeft)][$\(priceDouble)] <a href="\(item.itemURL)">\(subscription?.customName ?? item.name ?? item.itemURL)</a> đã có hàng. Truy cập <a href="\(appFrontendURL)">link</a> để đặt hàng ngay.</p>
                                                 """
                                             } else {
                                                 emailTitle = "⛔️ item Outstock!"
