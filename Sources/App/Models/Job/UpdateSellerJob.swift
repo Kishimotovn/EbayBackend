@@ -55,9 +55,16 @@ struct UpdateSellerJob: ScheduledJob {
                                     let emailContent: String
                                     let changeContent: String = """
                                     Changes:
-                                    - Added [\(changes.compactMap{ $0.insert }.count)]: (\(changes.compactMap{ $0.insert }.map { "\($0.item.title) - \($0.item.price.value ?? "N/A")" }.joined(separator: ", ")))
-                                    - Modified [\(changes.compactMap{ $0.replace }.count)]: (\(changes.compactMap{$0.replace}.map { "\($0.oldItem.title) -> \($0.newItem.title), \($0.oldItem.price.value ?? "N/A") -> \($0.newItem.price.value ?? "N/A")" }.joined(separator: ", "))
-                                    - Removed [\(changes.compactMap{ $0.delete }.count)]: (\(changes.compactMap{ $0.delete }.map { "\($0.item.title) - \($0.item.price.value ?? "N/A")" }.joined(separator: ", ")))
+                                    - Thêm [\(changes.compactMap{ $0.insert }.count)]: (\(changes.compactMap{ $0.insert }.map {
+                                    """
+                                    <a href="\($0.item.itemWebUrl)">\($0.item.title)</a> - \($0.item.price.value ?? "N/A")
+                                    """ }.joined(separator: ", ")))
+                                    - Thay đổi [\(changes.compactMap{ $0.replace }.count)]: (\(changes.compactMap{$0.replace}.map { """
+                                                                        <a href="\($0.item.itemWebUrl)">\($0.oldItem.title) -> \($0.newItem.title)</a>, \($0.oldItem.price.value ?? "N/A") -> \($0.newItem.price.value ?? "N/A")
+                                    """ }.joined(separator: ", "))
+                                    - Mất [\(changes.compactMap{ $0.delete }.count)]: (\(changes.compactMap{ $0.delete }.map { """
+                                                                        <a href="\($0.item.itemWebUrl)">\($0.item.title)</a> - \($0.item.price.value ?? "N/A")
+                                    """ }.joined(separator: ", ")))
                                     """
                                     if let name = subscription.customName {
                                         emailContent = """
