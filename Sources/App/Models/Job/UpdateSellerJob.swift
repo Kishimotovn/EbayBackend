@@ -60,7 +60,7 @@ struct UpdateSellerJob: ScheduledJob {
                                     <a href="\($0.item.itemWebUrl)">\($0.item.title)</a> - \($0.item.price.value ?? "N/A")
                                     """ }.joined(separator: ", ")))
                                     - Thay đổi [\(changes.compactMap{ $0.replace }.count)]: (\(changes.compactMap{$0.replace}.map { """
-                                                                        <a href="\($0.item.itemWebUrl)">\($0.oldItem.title) -> \($0.newItem.title)</a>, \($0.oldItem.price.value ?? "N/A") -> \($0.newItem.price.value ?? "N/A")
+                                                                        <a href="\($0.newItem.itemWebUrl)">\($0.oldItem.title) -> \($0.newItem.title)</a>, \($0.oldItem.price.value ?? "N/A") -> \($0.newItem.price.value ?? "N/A")
                                     """ }.joined(separator: ", "))
                                     - Mất [\(changes.compactMap{ $0.delete }.count)]: (\(changes.compactMap{ $0.delete }.map { """
                                                                         <a href="\($0.item.itemWebUrl)">\($0.item.title)</a> - \($0.item.price.value ?? "N/A")
