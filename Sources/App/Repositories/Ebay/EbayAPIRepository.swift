@@ -14,6 +14,7 @@ protocol EbayAPIRepository {
     func getItemDetails(seller: String, keyword: String, offset: Int) -> EventLoopFuture<EbayAPIItemListOutput>
     func getItemDetails(itemID: String) -> EventLoopFuture<EbayAPIItemOutput>
     func getItemDetails(ebayItemID: String) -> EventLoopFuture<EbayAPIItemOutput>
+    func searchItems(seller: String, keyword: String) -> EventLoopFuture<EbayItemSearchResponse>
 }
 
 class ClientEbayAPIRepository: EbayAPIRepository {
@@ -33,6 +34,28 @@ class ClientEbayAPIRepository: EbayAPIRepository {
         self.client = client
         self.ebayAppID = ebayAppID
         self.ebayAppSecret = ebayAppSecret
+    }
+
+    func searchItems(seller: String, keyword: String) -> EventLoopFuture<EbayItemSearchResponse> {
+        return self.refreshTokenToken()
+        .flatMap { () -> EventLoopFuture<ClientResponse> in
+            let url = URI(
+                scheme: "https",
+                host: "api.ebay.com",
+                path: "buy/browse/v1/item_summary/search")
+            return self.client.get(
+                url,
+                headers: [
+                    "Accept": "application/json",
+                    "X-EBAY-C-MARKETPLACE-ID": "EBAY_US",
+                    "Authorization": "Bearer \(self.currentToken?.accessToken ?? "")"
+            ]) { (request: inout ClientRequest) throws in
+                let input = EbaySearchItemInput(q: keyword, includedSellers: [seller], offset: 0, limit: 100)
+                try request.query.encode(input)
+            }
+        }.flatMapThrowing { (response: ClientResponse) -> EbayItemSearchResponse in
+            return try response.content.decode(EbayItemSearchResponse.self)
+        }
     }
 
     func getItemDetails(seller: String, keyword: String, offset: Int) -> EventLoopFuture<EbayAPIItemListOutput> {
@@ -397,7 +420,8 @@ struct EbaySearchItemInput: Content {
          epid: String? = nil,
          excludedSellers: [String]? = nil,
          includedSellers: [String]? = nil,
-         offset: Int? = nil) {
+         offset: Int? = nil,
+         limit: Int = 10) {
         self.q = q
         self.epid = epid
         var filters = [
@@ -414,6 +438,7 @@ struct EbaySearchItemInput: Content {
         if let offset = offset {
             self.offset = "\(offset)"
         }
+        self.limit = limit
     }
 }
 
@@ -422,6 +447,15 @@ struct EbayItemSearchResponse: Content {
     var offset: Int
     var limit: Int
     var total: Int
+}
+
+extension EbayItemSearchResponse: Equatable {
+    public static func ==(lhs: EbayItemSearchResponse, rhs: EbayItemSearchResponse) -> Bool {
+        return lhs.itemSummaries == rhs.itemSummaries
+            && lhs.offset == rhs.offset
+            && lhs.limit == rhs.limit
+            && lhs.total == rhs.total
+    }
 }
 
 struct EbayItemSummaryResponse: Content {
@@ -434,6 +468,50 @@ struct EbayItemSummaryResponse: Content {
     var seller: EbayGetItemResponse.SellerDetail
     var shippingOptions: [EbayGetItemResponse.ShippingOption]?
     var marketingPrice: EbayGetItemResponse.MarketingPrice?
+}
+
+import DeepDiff
+
+extension EbayItemSummaryResponse: DiffAware {
+    typealias DiffId = String
+
+    var diffId: String {
+        return self.itemId
+    }
+
+    static func compareContent(_ a: EbayItemSummaryResponse, _ b: EbayItemSummaryResponse) -> Bool {
+        return a.condition == b.condition
+            && a.title == b.title
+            && a.itemWebUrl == b.itemWebUrl
+            && a.price == b.price
+            && a.marketingPrice == b.marketingPrice
+    }
+}
+
+extension EbayItemSummaryResponse: Equatable {
+    public static func ==(lhs: EbayItemSummaryResponse, rhs: EbayItemSummaryResponse) -> Bool {
+        return lhs.itemId == rhs.itemId
+            && lhs.price == rhs.price
+            && lhs.marketingPrice == rhs.marketingPrice
+            && lhs.title == rhs.title
+    }
+}
+
+extension EbayGetItemResponse.MarketingPrice: Equatable {
+    public static func ==(lhs: EbayGetItemResponse.MarketingPrice, rhs: EbayGetItemResponse.MarketingPrice) -> Bool {
+        return lhs.discountAmount == rhs.discountAmount
+            && lhs.discountPercentage == rhs.discountPercentage
+            && lhs.originalPrice == rhs.originalPrice
+    }
+}
+
+extension EbayGetItemResponse.ConvertedAmount: Equatable {
+    public static func ==(lhs: EbayGetItemResponse.ConvertedAmount, rhs: EbayGetItemResponse.ConvertedAmount) -> Bool {
+        return lhs.convertedFromCurrency == rhs.convertedFromCurrency
+            && lhs.convertedFromValue == rhs.convertedFromValue
+            && lhs.value == rhs.value
+            && lhs.currency == rhs.currency
+    }
 }
 
 struct EbayClientCredentialsForm: Content {

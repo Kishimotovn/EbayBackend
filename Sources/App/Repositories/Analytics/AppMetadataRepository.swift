@@ -19,8 +19,10 @@ struct DatabaseAppMetadataRepository: AppMetadataRepository {
     let db: Database
 
     func getScanCount() -> EventLoopFuture<Int> {
+        let startOfToday = Calendar.current.startOfDay(for: Date())
         return AppMetadata
             .query(on: self.db)
+            .filter(\.$createdAt == startOfToday)
             .first()
             .map { metaData in
                 return metaData?.scanCount ?? 0
@@ -28,15 +30,18 @@ struct DatabaseAppMetadataRepository: AppMetadataRepository {
     }
 
     func setScanCount(_ count: Int) -> EventLoopFuture<Void> {
+        let startOfToday = Calendar.current.startOfDay(for: Date())
         return AppMetadata
             .query(on: self.db)
+            .filter(\.$createdAt == startOfToday)
             .first()
             .flatMap { metaData in
                 let targetMetaData: AppMetadata
                 if let metaData = metaData {
                     targetMetaData = metaData
                 } else {
-                    targetMetaData = AppMetadata(scanCount: 0)
+                    targetMetaData = AppMetadata(scanCount: 0,
+                                                 date: startOfToday)
                 }
                 targetMetaData.scanCount = count
                 return targetMetaData.save(on: self.db)
@@ -44,15 +49,17 @@ struct DatabaseAppMetadataRepository: AppMetadataRepository {
     }
 
     func incrementScanCount() -> EventLoopFuture<Void> {
+        let startOfToday = Calendar.current.startOfDay(for: Date())
         return AppMetadata
             .query(on: self.db)
+            .filter(\.$createdAt == startOfToday)
             .first()
             .flatMap { metaData in
                 let targetMetaData: AppMetadata
                 if let metaData = metaData {
                     targetMetaData = metaData
                 } else {
-                    targetMetaData = AppMetadata(scanCount: 0)
+                    targetMetaData = AppMetadata(scanCount: 0, date: startOfToday)
                 }
                 targetMetaData.scanCount += 1
                 return targetMetaData.save(on: self.db)

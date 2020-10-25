@@ -39,4 +39,6 @@ public func migrate(app: Application) throws {
     app.migrations.add(AddAppMetadata())
     app.migrations.add(AddIsFromFeaturedToOrderItem())
     app.migrations.add(AddPriceToSellerItemFeatured())
+    app.migrations.add(CreateSellerSellerSubscriptions())
+    app.migrations.add(AddCreatedAtToAppMetaData())
 }

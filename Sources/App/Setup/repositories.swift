@@ -74,6 +74,9 @@ public func setupRepositories(app: Application) throws {
     app.appMetadatas.use {
         DatabaseAppMetadataRepository(db: $0.db)
     }
+    app.sellerSubscriptions.use {
+        DatabaseSellerSellerSubscriptionRepository(db: $0.db)
+    }
 
     app.ebayAppID = Environment.process.EBAY_APP_ID
     app.ebayAppSecret = Environment.process.EBAY_APP_SECRET

@@ -22,6 +22,10 @@ public func jobs(app: Application) throws {
         .schedule(ResetScanCountJob())
         .daily()
         .at(.midnight)
+    app.queues
+        .schedule(UpdateSellerJob())
+        .minutely()
+        .at(0)
     try app.queues
         .startInProcessJobs(on: .default)
 }

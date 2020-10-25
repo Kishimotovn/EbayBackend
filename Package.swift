@@ -14,7 +14,8 @@ let package = Package(
         .package(url: "https://github.com/vapor/fluent-postgres-driver.git", from: "2.0.0"),
         .package(url: "https://github.com/scinfu/SwiftSoup.git", from: "2.0.0"),
         .package(url: "https://github.com/vapor/queues-redis-driver.git", from: "1.0.0-rc"),
-        .package(url: "https://github.com/vapor-community/sendgrid.git", from: "4.0.0")
+        .package(url: "https://github.com/vapor-community/sendgrid.git", from: "4.0.0"),
+        .package(url: "https://github.com/onmyway133/DeepDiff.git", .upToNextMajor(from: "2.3.0"))
     ],
     targets: [
         .target(
@@ -24,6 +25,7 @@ let package = Package(
                 .product(name: "FluentPostgresDriver", package: "fluent-postgres-driver"),
                 .product(name: "JWT", package: "jwt"),
                 .product(name: "Vapor", package: "vapor"),
+                .product(name: "DeepDiff", package: "DeepDiff"),
                 .product(name: "SwiftSoup", package: "SwiftSoup"),
                 .product(name: "QueuesRedisDriver", package: "queues-redis-driver"),
                 .product(name: "SendGrid", package: "sendgrid")

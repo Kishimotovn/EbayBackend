@@ -18,9 +18,15 @@ final class AppMetadata: Model, Content {
     @Field(key: "scan_count")
     var scanCount: Int
 
+    @OptionalField(key: "created_at")
+    var createdAt: Date?
+    
+
     init() { }
 
-    init(scanCount: Int) {
+    init(scanCount: Int,
+         date: Date) {
         self.scanCount = scanCount
+        self.createdAt = date
     }
 }
