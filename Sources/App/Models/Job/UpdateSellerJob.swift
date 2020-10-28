@@ -45,7 +45,10 @@ struct UpdateSellerJob: ScheduledJob {
                                 let changes = diff(old: oldItems, new: newItems)
                                 let changesCount = changes.count
                                 let reorderCount = changes.compactMap { $0.move }.count
-                                let shouldNotify = !changes.isEmpty && changesCount != reorderCount
+                                let changesThatAreNotPriceCount = changes.compactMap { $0.replace }.filter {
+                                    return $0.oldItem.price == $0.newItem.price && $0.oldItem.marketingPrice == $0.newItem.marketingPrice
+                                }.count
+                                let shouldNotify = !changes.isEmpty && changesCount != (reorderCount + changesThatAreNotPriceCount)
                                 subscription.response = response
                                 return subscription
                                     .save(on: context.application.db)
@@ -55,22 +58,25 @@ struct UpdateSellerJob: ScheduledJob {
                                 if shouldNotify {
                                     let emailTitle: String = "✅ Seller thay đổi!"
                                     let emailContent: String
+                                    let changesThatAreNotPrice = changes.compactMap { $0.replace }.filter {
+                                        return $0.oldItem.price == $0.newItem.price && $0.oldItem.marketingPrice == $0.newItem.marketingPrice
+                                    }
                                     let changeContent: String = """
-                                    Changes:
+                                    Thay đổi:<br/>
                                     - Thêm [\(changes.compactMap{ $0.insert }.count)]: (\(changes.compactMap{ $0.insert }.map {
                                     """
                                     <a href="\($0.item.itemWebUrl)">\($0.item.title)</a> - \($0.item.price.value ?? "N/A")
-                                    """ }.joined(separator: ", ")))<br/>
-                                    - Thay đổi [\(changes.compactMap{ $0.replace }.count)]: (\(changes.compactMap{$0.replace}.map { """
+                                    """ }.joined(separator: "<br/>")))<br/><br/>
+                                    - Thay đổi [\(changesThatAreNotPrice.count)]: (\(changesThatAreNotPrice.map { """
                                                                         <a href="\($0.newItem.itemWebUrl)">\($0.oldItem.title) -> \($0.newItem.title)</a>, \($0.oldItem.price.value ?? "N/A") -> \($0.newItem.price.value ?? "N/A")
-                                    """ }.joined(separator: ", "))<br/>
+                                    """ }.joined(separator: "<br/>"))<br/><br/>
                                     - Mất [\(changes.compactMap{ $0.delete }.count)]: (\(changes.compactMap{ $0.delete }.map { """
                                                                         <a href="\($0.item.itemWebUrl)">\($0.item.title)</a> - \($0.item.price.value ?? "N/A")
-                                    """ }.joined(separator: ", ")))
+                                    """ }.joined(separator: "<br/>")))
                                     """
                                     if let name = subscription.customName {
                                         emailContent = """
-                                            [\(name)] Updated! Go to <a href="https://www.ebay.com/sch/m.html?&_ssn=\(subscription.sellerName)&_nkw=\(subscription.keyword)">link</a> to check.<br/>
+                                            [\(name)] Updated! Go to <a href="https://www.ebay.com/sch/m.html?&_ssn=\(subscription.sellerName)&_nkw=\(subscription.keyword)">link</a> to check.<br/><br/>
                                             \(changeContent)
                                         """
                                     } else {
