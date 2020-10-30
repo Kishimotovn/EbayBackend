@@ -56,36 +56,40 @@ struct UpdateSellerJob: ScheduledJob {
                             }
                             .tryFlatMap { (response, shouldNotify, changes) in
                                 if shouldNotify {
-                                    let emailTitle: String = "✅ Seller thay đổi!"
+                                    let emailTitle: String = "🚀 Seller thay đổi!"
                                     let emailContent: String
                                     let changesThatAreNotPrice = changes.compactMap { $0.replace }.filter {
                                         return $0.oldItem.price == $0.newItem.price && $0.oldItem.marketingPrice == $0.newItem.marketingPrice
                                     }
                                     let changeContent: String = """
-                                    Thay đổi:<br/>
-                                    - Thêm [\(changes.compactMap{ $0.insert }.count)]: (\(changes.compactMap{ $0.insert }.map {
+                                    - Thêm [\(changes.compactMap{ $0.insert }.count)]:<br/> (\(changes.compactMap{ $0.insert }.map {
                                     """
                                     <a href="\($0.item.itemWebUrl)">\($0.item.title)</a> - \($0.item.price.value ?? "N/A")
                                     """ }.joined(separator: "<br/>")))<br/><br/>
-                                    - Thay đổi [\(changesThatAreNotPrice.count)]: (\(changesThatAreNotPrice.map { """
+                                    - Thay đổi giá [\(changesThatAreNotPrice.count)]:<br/> \(changesThatAreNotPrice.map { """
                                                                         <a href="\($0.newItem.itemWebUrl)">\($0.oldItem.title) -> \($0.newItem.title)</a>, \($0.oldItem.price.value ?? "N/A") -> \($0.newItem.price.value ?? "N/A")
                                     """ }.joined(separator: "<br/>"))<br/><br/>
-                                    - Mất [\(changes.compactMap{ $0.delete }.count)]: (\(changes.compactMap{ $0.delete }.map { """
+                                    - Hết [\(changes.compactMap{ $0.delete }.count)]:<br/> \(changes.compactMap{ $0.delete }.map { """
                                                                         <a href="\($0.item.itemWebUrl)">\($0.item.title)</a> - \($0.item.price.value ?? "N/A")
-                                    """ }.joined(separator: "<br/>")))
+                                    """ }.joined(separator: "<br/>"))
+                                    <br/><br/><br/>
+                                    List:<br/>
+                                    \((response.itemSummaries ?? []).map { """
+                                    <a href="\($0.itemWebUrl)">\($0.title)</a> - \($0.price.value ?? "N/A")
+                                    """ }.joined(separator: "<br/>"))
                                     """
                                     if let name = subscription.customName {
                                         emailContent = """
-                                            [\(name)] Updated! Go to <a href="https://www.ebay.com/sch/m.html?&_ssn=\(subscription.sellerName)&_nkw=\(subscription.keyword)">link</a> to check.<br/><br/>
+                                            [\(name)]<br/><br/>
                                             \(changeContent)
                                         """
                                     } else {
                                         emailContent = """
-                                            [\(subscription.sellerName)][\(subscription.keyword)] Updated! Go to <a href="https://www.ebay.com/sch/m.html?&_ssn=\(subscription.sellerName)&_nkw=\(subscription.keyword)">link</a> to check.<br/>
+                                            [\(subscription.sellerName)][\(subscription.keyword)]<br/><br/>
                                             \(changeContent)
                                         """
                                     }
-                                    
+
                                     let emailAddress = EmailAddress(email: "minhdung910@gmail.com")
                                     let emailAddress2 = EmailAddress(email: "chonusebay@gmail.com")
 
