@@ -58,15 +58,15 @@ struct UpdateSellerJob: ScheduledJob {
                                 if shouldNotify {
                                     let emailTitle: String = "🚀 Seller thay đổi!"
                                     let emailContent: String
-                                    let changesThatAreNotPrice = changes.compactMap { $0.replace }.filter {
-                                        return $0.oldItem.price == $0.newItem.price && $0.oldItem.marketingPrice == $0.newItem.marketingPrice
+                                    let changesThatArePriceChanges = changes.compactMap { $0.replace }.filter {
+                                        return $0.oldItem.price != $0.newItem.price || $0.oldItem.marketingPrice != $0.newItem.marketingPrice
                                     }
                                     let changeContent: String = """
                                     - Thêm [\(changes.compactMap{ $0.insert }.count)]:<br/> (\(changes.compactMap{ $0.insert }.map {
                                     """
                                     <a href="\($0.item.itemWebUrl)">\($0.item.title)</a> - \($0.item.price.value ?? "N/A")
                                     """ }.joined(separator: "<br/>")))<br/><br/>
-                                    - Thay đổi giá [\(changesThatAreNotPrice.count)]:<br/> \(changesThatAreNotPrice.map { """
+                                    - Thay đổi giá [\(changesThatArePriceChanges.count)]:<br/> \(changesThatArePriceChanges.map { """
                                                                         <a href="\($0.newItem.itemWebUrl)">\($0.oldItem.title) -> \($0.newItem.title)</a>, \($0.oldItem.price.value ?? "N/A") -> \($0.newItem.price.value ?? "N/A")
                                     """ }.joined(separator: "<br/>"))<br/><br/>
                                     - Hết [\(changes.compactMap{ $0.delete }.count)]:<br/> \(changes.compactMap{ $0.delete }.map { """
