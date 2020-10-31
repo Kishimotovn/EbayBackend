@@ -74,7 +74,9 @@ struct UpdateSellerJob: ScheduledJob {
                                     """ }.joined(separator: "<br/>"))
                                     <br/><br/><br/>
                                     List:<br/>
-                                    \((response.itemSummaries ?? []).map { """
+                                    \((response.itemSummaries ?? []).sorted { lhs, rhs in
+                                        return lhs.title < rhs.title
+                                    }.map { """
                                     <a href="\($0.itemWebUrl)">\($0.title)</a> - \($0.price.value ?? "N/A")
                                     """ }.joined(separator: "<br/>"))
                                     """
