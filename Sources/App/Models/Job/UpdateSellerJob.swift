@@ -56,67 +56,137 @@ struct UpdateSellerJob: ScheduledJob {
                             }
                             .tryFlatMap { (response, shouldNotify, changes) in
                                 if shouldNotify {
-                                    let emailTitle: String = "🚀 Seller thay đổi!"
-                                    let emailContent: String
-                                    let changesThatArePriceChanges = changes.compactMap { $0.replace }.filter {
-                                        return $0.oldItem.price != $0.newItem.price || $0.oldItem.marketingPrice != $0.newItem.marketingPrice
-                                    }
-                                    let changeContent: String = """
-                                    - Thêm [\(changes.compactMap{ $0.insert }.count)]:<br/> (\(changes.compactMap{ $0.insert }.map {
-                                    """
-                                    <a href="\($0.item.itemWebUrl)">\($0.item.title)</a> - \($0.item.price.value ?? "N/A")
-                                    """ }.joined(separator: "<br/>")))<br/><br/>
-                                    - Thay đổi giá [\(changesThatArePriceChanges.count)]:<br/> \(changesThatArePriceChanges.map { """
-                                                                        <a href="\($0.newItem.itemWebUrl)">\($0.oldItem.title) -> \($0.newItem.title)</a>, \($0.oldItem.price.value ?? "N/A") -> \($0.newItem.price.value ?? "N/A")
-                                    """ }.joined(separator: "<br/>"))<br/><br/>
-                                    - Hết [\(changes.compactMap{ $0.delete }.count)]:<br/> \(changes.compactMap{ $0.delete }.map { """
-                                                                        <a href="\($0.item.itemWebUrl)">\($0.item.title)</a> - \($0.item.price.value ?? "N/A")
-                                    """ }.joined(separator: "<br/>"))
-                                    <br/><br/><br/>
-                                    List:<br/>
-                                    \((response.itemSummaries ?? []).sorted { lhs, rhs in
-                                        return lhs.title < rhs.title
-                                    }.map { """
-                                    <a href="\($0.itemWebUrl)">\($0.title)</a> - \($0.price.value ?? "N/A")
-                                    """ }.joined(separator: "<br/>"))
-                                    """
-                                    if let name = subscription.customName {
-                                        emailContent = """
-                                            [\(name)]<br/><br/>
-                                            \(changeContent)
-                                        """
-                                    } else {
-                                        emailContent = """
-                                            [\(subscription.sellerName)][\(subscription.keyword)]<br/><br/>
-                                            \(changeContent)
-                                        """
-                                    }
-
+                                    var emails: [EventLoopFuture<Void>] = []
                                     let emailAddress = EmailAddress(email: "minhdung910@gmail.com")
                                     let emailAddress2 = EmailAddress(email: "chonusebay@gmail.com")
-
-                                    let emailConfig = Personalization(
-                                        to: [emailAddress, emailAddress2],
-                                        subject: emailTitle)
 
                                     let fromEmail = EmailAddress(
                                         email: "no-reply@1991ebay.com",
                                         name: "1991Ebay")
+                                    let contentPrefix: String
+                                    if let name = subscription.customName {
+                                        contentPrefix = """
+                                            [\(name)]
+                                        """
+                                    } else {
+                                        contentPrefix = """
+                                            [\(subscription.sellerName)][\(subscription.keyword)]
+                                        """
+                                    }
+                                    
+                                    let insertChanges = changes.compactMap{ $0.insert }
+                                    if (!insertChanges.isEmpty) {
+                                        let emailTitle: String = "✅ Seller thêm hàng!"
+                                        let emailContent: String = """
+                                        \(contentPrefix) - [\(insertChanges.count)]<br/>
+                                        \(insertChanges.map {
+                                            """
+                                            -  <a href="\($0.item.itemWebUrl)">\($0.item.title)</a> - \($0.item.price.value ?? "N/A")
+                                            """ }.joined(separator: "<br/>"))
+                                            <br/><br/><br/>
+                                            List:<br/>
+                                            \((response.itemSummaries ?? []).sorted { lhs, rhs in
+                                                return lhs.title < rhs.title
+                                            }.map { """
+                                            <a href="\($0.itemWebUrl)">\($0.title)</a> - \($0.price.value ?? "N/A")
+                                            """ }.joined(separator: "<br/>"))
+                                        """
+                                        let emailConfig = Personalization(
+                                            to: [emailAddress, emailAddress2],
+                                            subject: emailTitle)
 
-                                    let email = SendGridEmail(
-                                        personalizations: [emailConfig],
-                                        from: fromEmail,
-                                        content: [
-                                          ["type": "text/html",
-                                           "value": emailContent]
-                                        ])
+                                        let email = SendGridEmail(
+                                            personalizations: [emailConfig],
+                                            from: fromEmail,
+                                            content: [
+                                              ["type": "text/html",
+                                               "value": emailContent]
+                                            ])
+                                        try emails.append(context
+                                                        .application
+                                                        .sendgrid
+                                                        .client
+                                                        .send(email: email,
+                                                              on: context.eventLoop))
+                                    }
+                                    
+                                    let changesThatArePriceChanges = changes.compactMap { $0.replace }.filter {
+                                        return $0.oldItem.price != $0.newItem.price || $0.oldItem.marketingPrice != $0.newItem.marketingPrice
+                                    }
+                                    if (!changesThatArePriceChanges.isEmpty) {
+                                        let emailTitle: String = "⚠️ Thay đổi giá!"
+                                        let emailContent: String = """
+                                        \(contentPrefix) - [\(changesThatArePriceChanges.count)]<br/>
+                                        \(changesThatArePriceChanges.map {
+                                            let increasing = (Double($0.newItem.price.value ?? "") ?? 0) - (Double($0.oldItem.price.value ?? "") ?? 0) > 0
+                                            return """
+                                            -  \(increasing ? "🔺" : "🔻") <a href="\($0.newItem.itemWebUrl)">\($0.oldItem.title) -> \($0.newItem.title)</a>, \($0.oldItem.price.value ?? "N/A") -> \($0.newItem.price.value ?? "N/A")
+                                            """ }.joined(separator: "<br/>"))
+                                            <br/><br/><br/>
+                                            List:<br/>
+                                            \((response.itemSummaries ?? []).sorted { lhs, rhs in
+                                                return lhs.title < rhs.title
+                                            }.map { """
+                                            <a href="\($0.itemWebUrl)">\($0.title)</a> - \($0.price.value ?? "N/A")
+                                            """ }.joined(separator: "<br/>"))
+                                        """
+                                        let emailConfig = Personalization(
+                                            to: [emailAddress, emailAddress2],
+                                            subject: emailTitle)
 
-                                    return try context
-                                        .application
-                                        .sendgrid
-                                        .client
-                                        .send(email: email,
-                                              on: context.eventLoop)
+                                        let email = SendGridEmail(
+                                            personalizations: [emailConfig],
+                                            from: fromEmail,
+                                            content: [
+                                              ["type": "text/html",
+                                               "value": emailContent]
+                                            ])
+                                        try emails.append(context
+                                                        .application
+                                                        .sendgrid
+                                                        .client
+                                                        .send(email: email,
+                                                              on: context.eventLoop))
+                                    }
+                                    
+                                    let deleteChanges = changes.compactMap{ $0.delete }
+                                    if !deleteChanges.isEmpty {
+                                        let emailTitle: String = "💥 Seller hết hàng!"
+                                        let emailContent: String = """
+                                        \(contentPrefix) - [\(deleteChanges.count)]<br/>
+                                        \(deleteChanges.map {
+                                            """
+                                            -  <a href="\($0.item.itemWebUrl)">\($0.item.title)</a> - \($0.item.price.value ?? "N/A")
+                                            """ }.joined(separator: "<br/>"))
+                                            <br/><br/><br/>
+                                            List:<br/>
+                                            \((response.itemSummaries ?? []).sorted { lhs, rhs in
+                                                return lhs.title < rhs.title
+                                            }.map { """
+                                            <a href="\($0.itemWebUrl)">\($0.title)</a> - \($0.price.value ?? "N/A")
+                                            """ }.joined(separator: "<br/>"))
+                                        """
+                                        let emailConfig = Personalization(
+                                            to: [emailAddress, emailAddress2],
+                                            subject: emailTitle)
+
+                                        let email = SendGridEmail(
+                                            personalizations: [emailConfig],
+                                            from: fromEmail,
+                                            content: [
+                                              ["type": "text/html",
+                                               "value": emailContent]
+                                            ])
+                                        try emails.append(context
+                                                        .application
+                                                        .sendgrid
+                                                        .client
+                                                        .send(email: email,
+                                                              on: context.eventLoop))
+                                    }
+
+                                    return emails
+                                        .flatten(on: context.eventLoop)
                                 } else {
                                     return context.eventLoop.future()
                                 }
