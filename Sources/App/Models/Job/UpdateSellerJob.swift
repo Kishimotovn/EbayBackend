@@ -115,20 +115,20 @@ struct UpdateSellerJob: ScheduledJob {
                                     }
                                     if (!changesThatArePriceChanges.isEmpty) {
                                         let emailTitle: String = "⚠️ Thay đổi giá!"
-                                        let emailContent: String = """
-                                        \(contentPrefix) - [\(changesThatArePriceChanges.count)]<br/>
-                                        \(changesThatArePriceChanges.map {
+                                        let priceChangesContent = changesThatArePriceChanges.map {
                                             let increasing = (Double($0.newItem.price.value ?? "") ?? 0) - (Double($0.oldItem.price.value ?? "") ?? 0) > 0
                                             return """
                                             -  \(increasing ? "🔺" : "🔻") <a href="\($0.newItem.itemWebUrl)">\($0.oldItem.title) -> \($0.newItem.title)</a>, \($0.oldItem.price.value ?? "N/A") -> \($0.newItem.price.value ?? "N/A")
-                                            """ }.joined(separator: "<br/>"))
-                                            <br/><br/><br/>
-                                            List:<br/>
-                                            \((response.itemSummaries ?? []).sorted { lhs, rhs in
-                                                return lhs.title < rhs.title
-                                            }.map { """
-                                            <a href="\($0.itemWebUrl)">\($0.title)</a> - \($0.price.value ?? "N/A")
-                                            """ }.joined(separator: "<br/>"))
+                                            """ }.joined(separator: "<br/>")
+                                        let emailContent: String = """
+                                        \(contentPrefix) - [\(changesThatArePriceChanges.count)]<br/>
+                                        \(priceChangesContent)<br/><br/><br/>
+                                        List:<br/>
+                                        \((response.itemSummaries ?? []).sorted { lhs, rhs in
+                                            return lhs.title < rhs.title
+                                        }.map { """
+                                        <a href="\($0.itemWebUrl)">\($0.title)</a> - \($0.price.value ?? "N/A")
+                                        """ }.joined(separator: "<br/>"))
                                         """
                                         let emailConfig = Personalization(
                                             to: [emailAddress, emailAddress2],
