@@ -115,11 +115,14 @@ struct UpdateSellerJob: ScheduledJob {
                                     }
                                     if (!changesThatArePriceChanges.isEmpty) {
                                         let emailTitle: String = "⚠️ Thay đổi giá!"
-                                        let priceChangesContent = changesThatArePriceChanges.map {
-                                            let increasing = (Double($0.newItem.price.value ?? "") ?? 0) - (Double($0.oldItem.price.value ?? "") ?? 0) > 0
-                                            return """
-                                            -  \(increasing ? "🔺" : "🔻") <a href="\($0.newItem.itemWebUrl)">\($0.oldItem.title) -> \($0.newItem.title)</a>, \($0.oldItem.price.value ?? "N/A") -> \($0.newItem.price.value ?? "N/A")
-                                            """ }.joined(separator: "<br/>")
+                                        let priceChangesContent = changesThatArePriceChanges.map { change -> (Bool, Replace<EbayItemSummaryResponse>) in
+                                            let increasing = (Double(change.newItem.price.value ?? "") ?? 0) - (Double(change.oldItem.price.value ?? "") ?? 0) > 0
+                                            return (increasing, change)
+                                        }.map { increasing, change -> String in
+                                            """
+                                            -  \(increasing ? "🔺" : "🔻") <a href="\(change.newItem.itemWebUrl)">\(change.oldItem.title) -> \(change.newItem.title)</a>, \(change.oldItem.price.value ?? "N/A") -> \(change.newItem.price.value ?? "N/A")
+                                            """
+                                        }.joined(separator: "<br/>")
                                         let emailContent: String = """
                                         \(contentPrefix) - [\(changesThatArePriceChanges.count)]<br/>
                                         \(priceChangesContent)<br/><br/><br/>
