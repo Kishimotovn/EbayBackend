@@ -31,7 +31,7 @@ struct UpdateQuantityJob: ScheduledJob {
                     try $0.joined(SellerItemSubscription.self)
                 }
                 let validItems: [Item] = zip(items, subscriptions).filter { (item, subscription) in
-                    return (minutes % (subscription.scanInterval ?? context.application.scanInterval)) == 0
+                    return subscription.isEnabled && (minutes % (subscription.scanInterval ?? context.application.scanInterval)) == 0
                 }.map { (item, subscription) in
                     return item
                 }

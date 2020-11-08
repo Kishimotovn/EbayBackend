@@ -36,6 +36,9 @@ final class SellerItemSubscription: Model, Content {
     @OptionalField(key: "custom_name")
     var customName: String?
 
+    @Field(key: "is_enabled")
+    var isEnabled: Bool
+
     init() { }
 
     init(sellerID: Seller.IDValue,
@@ -44,6 +47,7 @@ final class SellerItemSubscription: Model, Content {
         self.$seller.id = sellerID
         self.$item.id = itemID
         self.scanInterval = scanInterval
+        self.isEnabled = true
     }
 }
 

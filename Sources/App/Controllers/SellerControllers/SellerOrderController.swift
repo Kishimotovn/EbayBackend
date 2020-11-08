@@ -99,6 +99,9 @@ struct SellerOrderController: RouteCollection {
                 if let customName = input.customName, customName != subscription.customName {
                     subscription.customName = customName
                 }
+                if let isEnabled = input.isEnabled {
+                    subscription.isEnabled = isEnabled
+                }
                 return subscription
                     .save(on: request.db)
                     .transform(to: .ok)

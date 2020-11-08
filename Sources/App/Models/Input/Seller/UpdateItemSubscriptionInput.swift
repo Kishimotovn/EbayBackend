@@ -11,4 +11,5 @@ import Vapor
 struct UpdateItemSubscriptionInput: Content {
     var scanInterval: Int?
     var customName: String?
+    var isEnabled: Bool?
 }

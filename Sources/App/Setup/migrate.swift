@@ -41,4 +41,6 @@ public func migrate(app: Application) throws {
     app.migrations.add(AddPriceToSellerItemFeatured())
     app.migrations.add(CreateSellerSellerSubscriptions())
     app.migrations.add(AddCreatedAtToAppMetaData())
+    app.migrations.add(AddIsEnabledToSellerItemSubscription())
+    app.migrations.add(AddIsEnabledToSellerSellerSubscription())
 }

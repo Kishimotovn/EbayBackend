@@ -22,7 +22,7 @@ struct UpdateSellerJob: ScheduledJob {
                 let minutes = calendar.component(.minute, from: now)
 
                 let validSubscriptions: [SellerSellerSubscription] = subscriptions.filter { subscription in
-                    return (minutes % (subscription.scanInterval ?? context.application.scanInterval)) == 0
+                    return subscription.isEnabled && (minutes % (subscription.scanInterval ?? context.application.scanInterval)) == 0
                 }
 
                 guard !validSubscriptions.isEmpty else {

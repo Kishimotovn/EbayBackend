@@ -38,6 +38,9 @@ struct SellerSubcriptionController: RouteCollection {
                 if let scanInterval = input.scanInterval {
                     subscription.scanInterval = scanInterval
                 }
+                if let isEnabled = input.isEnabled {
+                    subscription.isEnabled = isEnabled
+                }
                 return request.sellerSubscriptions.save(subscription: subscription)
                     .transform(to: subscription)
             }

@@ -42,6 +42,9 @@ final class SellerSellerSubscription: Model, Content {
     @OptionalField(key: "scan_interval")
     var scanInterval: Int?
 
+    @Field(key: "is_enabled")
+    var isEnabled: Bool
+
     init() { }
 
     init(sellerName: String,
@@ -56,6 +59,7 @@ final class SellerSellerSubscription: Model, Content {
         self.customName = customName
         self.response = response
         self.scanInterval = scanInterval
+        self.isEnabled = true
     }
 }
 
