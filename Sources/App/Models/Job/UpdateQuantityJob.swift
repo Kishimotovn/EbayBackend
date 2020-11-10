@@ -22,6 +22,7 @@ struct UpdateQuantityJob: ScheduledJob {
             .field(\.$name)
             .field(\.$itemURL)
             .field(SellerItemSubscription.self, \.$item.$id)
+            .field(SellerItemSubscription.self, \.$isEnabled)
             .all()
             .tryFlatMap { items -> EventLoopFuture<Void> in
                 let now = Date()
