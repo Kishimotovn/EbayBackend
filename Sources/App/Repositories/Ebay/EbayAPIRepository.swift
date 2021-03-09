@@ -50,7 +50,7 @@ class ClientEbayAPIRepository: EbayAPIRepository {
                     "X-EBAY-C-MARKETPLACE-ID": "EBAY_US",
                     "Authorization": "Bearer \(self.currentToken?.accessToken ?? "")"
             ]) { (request: inout ClientRequest) throws in
-                let input = EbaySearchItemInput(q: keyword, includedSellers: [seller], offset: 0, limit: 100)
+                let input = EbaySearchItemInput(q: keyword.components(separatedBy: " ").joined(separator: ","), includedSellers: [seller], offset: 0, limit: 100)
                 try request.query.encode(input)
             }
         }.flatMapThrowing { (response: ClientResponse) -> EbayItemSearchResponse in
