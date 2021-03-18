@@ -11,9 +11,8 @@ import Fluent
 import FluentPostgresDriver
 
 public func databases(app: Application) throws {
-    if let databaseURL = Environment.process.DATABASE_URL, let url = URL(string: databaseURL) {
-        let sslEnabledURL = url.appending("ssl", value: "true")
-        try app.databases.use(.postgres(url: sslEnabledURL), as: .psql)
+    if let databaseURL = Environment.process.DATABASE_URL {
+        try app.databases.use(.postgres(url: databaseURL), as: .psql)
     } else {
         app.databases.use(.postgres(
             hostname: Environment.get("DATABASE_HOST") ?? "localhost",
