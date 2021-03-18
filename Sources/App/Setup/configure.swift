@@ -1,7 +1,6 @@
 import Fluent
 import FluentPostgresDriver
 import Vapor
-import RedisKit
 
 // configures your application
 public func configure(_ app: Application) throws {
