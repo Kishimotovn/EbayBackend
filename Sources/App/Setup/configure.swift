@@ -13,11 +13,10 @@ public func configure(_ app: Application) throws {
     // configure middlewares
     try middlewares(app: app)
 
-    try redis(app: app)
-    try jobs(app: app)
-
     // configure databases
     try databases(app: app)
+    try redis(app: app)
+    try jobs(app: app)
 
     // run migrations
     try migrate(app: app)

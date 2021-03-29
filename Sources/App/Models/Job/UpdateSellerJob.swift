@@ -39,9 +39,14 @@ struct UpdateSellerJob: ScheduledJob {
                     .map { subscription in
                         return clientEbayRepository
                             .searchItems(seller: subscription.sellerName, keyword: subscription.keyword)
-                            .flatMap { response -> EventLoopFuture<(EbayItemSearchResponse, Bool, [Change<EbayItemSummaryResponse>])> in
+                            .flatMap { response -> EventLoopFuture<((EbayItemSearchResponse, Bool, [Change<EbayItemSummaryResponse>]), [(Bool, String)])> in
                                 let oldItems = subscription.response.itemSummaries ?? []
                                 let newItems = response.itemSummaries ?? []
+                                
+                                let saleCheckFuture = self.getFurtherDiscounts(for: newItems,
+                                                                               using: clientEbayRepository,
+                                                                               on: context.eventLoop)
+                                
                                 let changes = diff(old: oldItems, new: newItems)
                                 let changesCount = changes.count
                                 let reorderCount = changes.compactMap { $0.move }.count
@@ -53,12 +58,15 @@ struct UpdateSellerJob: ScheduledJob {
                                 return subscription
                                     .save(on: context.application.db)
                                     .transform(to: (response, shouldNotify, changes))
+                                    .and(saleCheckFuture)
                             }
-                            .tryFlatMap { (response, shouldNotify, changes) in
+                            .tryFlatMap { arg0, discounts in
+                                let (response, shouldNotify, changes) = arg0
                                 if shouldNotify {
                                     var emails: [EventLoopFuture<Void>] = []
                                     let emailAddress = EmailAddress(email: "minhdung910@gmail.com")
                                     let emailAddress2 = EmailAddress(email: "chonusebay@gmail.com")
+                                    let emailAddress3 = EmailAddress(email: "kishimotovn@gmail.com")
 
                                     let fromEmail = EmailAddress(
                                         email: "no-reply@1991ebay.com",
@@ -81,8 +89,9 @@ struct UpdateSellerJob: ScheduledJob {
                                         \(contentPrefix) - [\(insertChanges.count)]<br/>
                                         \(insertChanges.map {
                                             """
-                                            -  <a href="\($0.item.itemWebUrl)">\($0.item.title)</a> - \($0.item.price.value ?? "N/A")
-                                            """ }.joined(separator: "<br/>"))
+                                            - \(self.hasFurtherDiscount(itemID: $0.item.itemId, discounts: discounts) ? "[⚠️ Có giảm thêm]" : "") <a href="\($0.item.itemWebUrl)">\($0.item.title)</a> - \($0.item.price.value ?? "N/A")
+                                            """
+                                        }.joined(separator: "<br/>"))
                                             <br/><br/><br/>
                                             List:<br/>
                                             \((response.itemSummaries ?? []).sorted { lhs, rhs in
@@ -120,7 +129,7 @@ struct UpdateSellerJob: ScheduledJob {
                                             return (increasing, change)
                                         }.map { increasing, change -> String in
                                             """
-                                            -  \(increasing ? "🔺" : "🔻") <a href="\(change.newItem.itemWebUrl)">\(change.oldItem.title) -> \(change.newItem.title)</a>, \(change.oldItem.price.value ?? "N/A") -> \(change.newItem.price.value ?? "N/A")
+                                            -  \(increasing ? "🔺" : "🔻") \(self.hasFurtherDiscount(itemID: change.newItem.itemId, discounts: discounts) ? "[⚠️ Có giảm thêm]" : "") <a href="\(change.newItem.itemWebUrl)">\(change.oldItem.title) -> \(change.newItem.title)</a>, \(change.oldItem.price.value ?? "N/A") -> \(change.newItem.price.value ?? "N/A")
                                             """
                                         }.joined(separator: "<br/>")
                                         let emailContent: String = """
@@ -159,7 +168,7 @@ struct UpdateSellerJob: ScheduledJob {
                                         \(contentPrefix) - [\(deleteChanges.count)]<br/>
                                         \(deleteChanges.map {
                                             """
-                                            -  <a href="\($0.item.itemWebUrl)">\($0.item.title)</a> - \($0.item.price.value ?? "N/A")
+                                            -  \(self.hasFurtherDiscount(itemID: $0.item.itemId, discounts: discounts) ? "[⚠️ Có giảm thêm]" : "") <a href="\($0.item.itemWebUrl)">\($0.item.title)</a> - \($0.item.price.value ?? "N/A")
                                             """ }.joined(separator: "<br/>"))
                                             <br/><br/><br/>
                                             List:<br/>
@@ -170,7 +179,7 @@ struct UpdateSellerJob: ScheduledJob {
                                             """ }.joined(separator: "<br/>"))
                                         """
                                         let emailConfig = Personalization(
-                                            to: [emailAddress, emailAddress2],
+                                            to: [emailAddress, emailAddress2, emailAddress3],
                                             subject: emailTitle)
 
                                         let email = SendGridEmail(
@@ -211,5 +220,22 @@ struct UpdateSellerJob: ScheduledJob {
                 return self.runByChunk(futures: Array(newBatch), chunk: chunk, eventLoop: eventLoop)
             }
         }
+    }
+
+    private func hasFurtherDiscount(itemID: String, discounts: [(Bool, String)]) -> Bool {
+        if let discount = discounts.first(where: {$0.1 == itemID}) {
+            return discount.0
+        }
+        return false
+    }
+
+    private func getFurtherDiscounts(
+        for items: [EbayItemSummaryResponse],
+        using repo: ClientEbayAPIRepository,
+        on eventLoop: EventLoop) -> EventLoopFuture<[(Bool, String)]> {
+        return items.map { item in
+            return repo.checkFurtherDiscountFromWebPage(urlString: item.itemWebUrl)
+                .and(value: item.itemId)
+        }.flatten(on: eventLoop)
     }
 }

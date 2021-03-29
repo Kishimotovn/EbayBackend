@@ -15,6 +15,7 @@ protocol EbayAPIRepository {
     func getItemDetails(itemID: String) -> EventLoopFuture<EbayAPIItemOutput>
     func getItemDetails(ebayItemID: String) -> EventLoopFuture<EbayAPIItemOutput>
     func searchItems(seller: String, keyword: String) -> EventLoopFuture<EbayItemSearchResponse>
+    func checkFurtherDiscountFromWebPage(urlString: String) -> EventLoopFuture<Bool>
 }
 
 class ClientEbayAPIRepository: EbayAPIRepository {
@@ -205,6 +206,12 @@ class ClientEbayAPIRepository: EbayAPIRepository {
             .flatMap { ebayItemID -> EventLoopFuture<EbayAPIItemOutput> in
                 return self.getItemDetails(ebayItemID: ebayItemID)
             }
+    }
+
+    func checkFurtherDiscountFromWebPage(urlString: String) -> EventLoopFuture<Bool> {
+        return self.getFurtherDiscountFromWebPage(urlString: urlString, from: 0).map {
+            return $0.1 != nil || $0.0 != nil
+        }
     }
 
     private func getFurtherDiscountFromWebPage(urlString: String, from price: Int) -> EventLoopFuture<(Int?, [VolumeDiscount]?)> {
