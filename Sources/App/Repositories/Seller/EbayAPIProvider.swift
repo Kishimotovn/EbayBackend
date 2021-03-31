@@ -8,6 +8,10 @@
 import Foundation
 import Vapor
 
+struct NotificationEmails: StorageKey {
+    typealias Value = [String]
+}
+
 struct EbayAppID: StorageKey {
     typealias Value = String
 }
@@ -25,6 +29,11 @@ struct ScanInterval: StorageKey {
 }
 
 extension Application {
+    var notificationEmails: [String] {
+        get { self.storage[NotificationEmails.self] ?? ["minhdung910@gmail.com", "chonusebay@gmail.com"] }
+        set { self.storage[NotificationEmails.self] = newValue }
+    }
+
     var ebayAppID: String? {
         get { self.storage[EbayAppID.self] }
         set { self.storage[EbayAppID.self] = newValue }

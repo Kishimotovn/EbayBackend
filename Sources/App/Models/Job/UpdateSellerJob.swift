@@ -64,9 +64,7 @@ struct UpdateSellerJob: ScheduledJob {
                                 let (response, shouldNotify, changes) = arg0
                                 if shouldNotify {
                                     var emails: [EventLoopFuture<Void>] = []
-                                    let emailAddress = EmailAddress(email: "minhdung910@gmail.com")
-                                    let emailAddress2 = EmailAddress(email: "chonusebay@gmail.com")
-                                    let emailAddress3 = EmailAddress(email: "kishimotovn@gmail.com")
+                                    let listOfEmails = context.application.notificationEmails.map { EmailAddress(email: $0) }
 
                                     let fromEmail = EmailAddress(
                                         email: "no-reply@1991ebay.com",
@@ -101,7 +99,7 @@ struct UpdateSellerJob: ScheduledJob {
                                             """ }.joined(separator: "<br/>"))
                                         """
                                         let emailConfig = Personalization(
-                                            to: [emailAddress, emailAddress2],
+                                            to: listOfEmails,
                                             subject: emailTitle)
 
                                         let email = SendGridEmail(
@@ -143,7 +141,7 @@ struct UpdateSellerJob: ScheduledJob {
                                         """ }.joined(separator: "<br/>"))
                                         """
                                         let emailConfig = Personalization(
-                                            to: [emailAddress, emailAddress2],
+                                            to: listOfEmails,
                                             subject: emailTitle)
 
                                         let email = SendGridEmail(
@@ -179,7 +177,7 @@ struct UpdateSellerJob: ScheduledJob {
                                             """ }.joined(separator: "<br/>"))
                                         """
                                         let emailConfig = Personalization(
-                                            to: [emailAddress, emailAddress2, emailAddress3],
+                                            to: listOfEmails,
                                             subject: emailTitle)
 
                                         let email = SendGridEmail(

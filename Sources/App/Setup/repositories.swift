@@ -82,6 +82,7 @@ public func setupRepositories(app: Application) throws {
     app.ebayAppSecret = Environment.process.EBAY_APP_SECRET
     app.appFrontendURL = Environment.process.FRONTEND_URL
     app.scanInterval = Int(Environment.process.SCAN_INTERVAL ?? "") ?? 5
+    app.notificationEmails = (Environment.process.NOTIFICATION_EMAILS ?? "minhdung910@gmail.com,chonusebay@gmail.com").components(separatedBy: ",")
 
     if (Environment.process.SENDGRID_API_KEY != nil) {
         app.sendgrid.initialize()
