@@ -62,6 +62,7 @@ struct UpdateSellerJob: ScheduledJob {
                             }
                             .tryFlatMap { arg0, discounts in
                                 let hasDiscounts = discounts.filter { $0.0 }.isEmpty == false
+                                let titleAppend = hasDiscounts ? "⚠️" : ""
                                 let (response, shouldNotify, changes) = arg0
                                 if shouldNotify {
                                     var emails: [EventLoopFuture<Void>] = []
@@ -83,7 +84,7 @@ struct UpdateSellerJob: ScheduledJob {
                                     
                                     let insertChanges = changes.compactMap{ $0.insert }
                                     if (!insertChanges.isEmpty) {
-                                        let emailTitle: String = "\(hasDiscounts ? ⚠️ : "") ✅ Seller thêm hàng!"
+                                        let emailTitle: String = "\(titleAppend) ✅ Seller thêm hàng!"
                                         let emailContent: String = """
                                         \(contentPrefix) - [\(insertChanges.count)]<br/>
                                         \(insertChanges.map {
@@ -122,7 +123,7 @@ struct UpdateSellerJob: ScheduledJob {
                                         return $0.oldItem.price != $0.newItem.price || $0.oldItem.marketingPrice != $0.newItem.marketingPrice
                                     }
                                     if (!changesThatArePriceChanges.isEmpty) {
-                                        let emailTitle: String = "\(hasDiscounts ? ⚠️ : "") ⚠️ Thay đổi giá!"
+                                        let emailTitle: String = "\(titleAppend) ⚠️ Thay đổi giá!"
                                         let priceChangesContent = changesThatArePriceChanges.map { change -> (Bool, Replace<EbayItemSummaryResponse>) in
                                             let increasing = (Double(change.newItem.price.value ?? "") ?? 0) - (Double(change.oldItem.price.value ?? "") ?? 0) > 0
                                             return (increasing, change)
@@ -162,7 +163,7 @@ struct UpdateSellerJob: ScheduledJob {
                                     
                                     let deleteChanges = changes.compactMap{ $0.delete }
                                     if !deleteChanges.isEmpty {
-                                        let emailTitle: String = "\(hasDiscounts ? ⚠️ : "") 💥 Seller hết hàng!"
+                                        let emailTitle: String = "\(titleAppend) 💥 Seller hết hàng!"
                                         let emailContent: String = """
                                         \(contentPrefix) - [\(deleteChanges.count)]<br/>
                                         \(deleteChanges.map {
