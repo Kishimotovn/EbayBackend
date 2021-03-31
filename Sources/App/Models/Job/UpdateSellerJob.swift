@@ -95,7 +95,7 @@ struct UpdateSellerJob: ScheduledJob {
                                             \((response.itemSummaries ?? []).sorted { lhs, rhs in
                                                 return lhs.title < rhs.title
                                             }.map { """
-                                            <a href="\($0.itemWebUrl)">\($0.title)</a> - \($0.price.value ?? "N/A")
+                                            - \(self.hasFurtherDiscount(itemID: $0.itemId, discounts: discounts) ? "[⚠️ Có giảm thêm]" : "") <a href="\($0.itemWebUrl)">\($0.title)</a> - \($0.price.value ?? "N/A")
                                             """ }.joined(separator: "<br/>"))
                                         """
                                         let emailConfig = Personalization(
@@ -137,7 +137,7 @@ struct UpdateSellerJob: ScheduledJob {
                                         \((response.itemSummaries ?? []).sorted { lhs, rhs in
                                             return lhs.title < rhs.title
                                         }.map { """
-                                        <a href="\($0.itemWebUrl)">\($0.title)</a> - \($0.price.value ?? "N/A")
+                                        - \(self.hasFurtherDiscount(itemID: $0.itemId, discounts: discounts) ? "[⚠️ Có giảm thêm]" : "") <a href="\($0.itemWebUrl)">\($0.title)</a> - \($0.price.value ?? "N/A")
                                         """ }.joined(separator: "<br/>"))
                                         """
                                         let emailConfig = Personalization(
@@ -173,7 +173,7 @@ struct UpdateSellerJob: ScheduledJob {
                                             \((response.itemSummaries ?? []).sorted { lhs, rhs in
                                                 return lhs.title < rhs.title
                                             }.map { """
-                                            <a href="\($0.itemWebUrl)">\($0.title)</a> - \($0.price.value ?? "N/A")
+                                            - \(self.hasFurtherDiscount(itemID: $0.itemId, discounts: discounts) ? "[⚠️ Có giảm thêm]" : "") <a href="\($0.itemWebUrl)">\($0.title)</a> - \($0.price.value ?? "N/A")
                                             """ }.joined(separator: "<br/>"))
                                         """
                                         let emailConfig = Personalization(
