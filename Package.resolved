@@ -123,8 +123,8 @@
         "repositoryURL": "https://github.com/vapor/queues-redis-driver.git",
         "state": {
           "branch": null,
-          "revision": "04306b81ef25b3bc42d9634c7c657b3eb498ed0e",
-          "version": "1.0.0"
+          "revision": "53077538b862ea93cc0054c6b308497b67219b7c",
+          "version": "1.0.2"
         }
       },
       {
@@ -276,8 +276,8 @@
         "repositoryURL": "https://github.com/vapor/vapor.git",
         "state": {
           "branch": null,
-          "revision": "5db9e4c5cde2b1b951f87c0fed06aa51fa79c9d1",
-          "version": "4.41.5"
+          "revision": "eef16e1a56c04f05d55e775ccf7bfd512edd7d58",
+          "version": "4.43.2"
         }
       },
       {

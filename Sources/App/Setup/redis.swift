@@ -11,5 +11,6 @@ import QueuesRedisDriver
 import Queues
 
 public func redis(app: Application) throws {
-    try app.queues.use(.redis(url: Environment.get("REDIS_URL") ?? "redis://127.0.0.1:32768"))
+    let configuration = try RedisConfiguration(url: Environment.get("REDIS_URL") ?? "redis://127.0.0.1:32768", pool: .init(connectionRetryTimeout: .minutes(4)))
+    app.queues.use(.redis(configuration))
 }
