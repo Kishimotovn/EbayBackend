@@ -174,7 +174,7 @@ class ClientEbayAPIRepository: EbayAPIRepository {
                     originalPrice: normalizedOriginalPrice,
                     sellerName: item.seller.username,
                     sellerFeedbackCount: item.seller.feedbackScore,
-                    sellerScore: Double(item.seller.feedbackPercentage),
+                    sellerScore: Double(item.seller.feedbackPercentage ?? ""),
                     itemEndDate: endDate,
                     quantityLeft: quantityLeft,
                     volumeDiscounts: volumeDiscounts,
@@ -610,7 +610,7 @@ extension EbayGetItemResponse {
     }
 
     struct SellerDetail: Content {
-        var feedbackPercentage: String
+        var feedbackPercentage: String?
         var feedbackScore: Int
         var username: String
     }

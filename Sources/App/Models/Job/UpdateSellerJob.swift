@@ -29,6 +29,7 @@ struct UpdateSellerJob: ScheduledJob {
                     return context.eventLoop.future()
                 }
 
+                context.application.logger.info("Running scan for \(validSubscriptions.count) sellers")
                 let clientEbayRepository = ClientEbayAPIRepository(
                     application: context.application,
                     client: context.application.client,
@@ -202,6 +203,10 @@ struct UpdateSellerJob: ScheduledJob {
                                 } else {
                                     return context.eventLoop.future()
                                 }
+                            }
+                            .flatMapErrorThrowing { error in
+                                context.application.logger.error("Failed seller scan for \(subscription) with error \(error)")
+                                return
                             }
                     }
 
