@@ -174,7 +174,7 @@ class ClientEbayAPIRepository: EbayAPIRepository {
                     originalPrice: normalizedOriginalPrice,
                     sellerName: item.seller.username,
                     sellerFeedbackCount: item.seller.feedbackScore,
-                    sellerScore: Double(item.seller.feedbackPercentage ?? ""),
+                    sellerScore: 0,
                     itemEndDate: endDate,
                     quantityLeft: quantityLeft,
                     volumeDiscounts: volumeDiscounts,
