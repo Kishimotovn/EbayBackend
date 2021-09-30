@@ -53,75 +53,10 @@ struct UpdateQuantityJob: ScheduledJob {
                                 ebayAppID: context.application.ebayAppID ?? "",
                                 ebayAppSecret: context.application.ebayAppSecret ?? "")
                             let itemRepository = DatabaseItemRepository(db: context.application.db)
-                            let allPromises: [EventLoopFuture<Void>] = validItems.map { (item: Item) in
-                                return clientEbayRepository.getItemDetails(ebayItemID: item.itemID)
-                                    .flatMap { (output: EbayAPIItemOutput) -> EventLoopFuture<(Item, Bool, String, Int)> in
-                                        let isOutOfStock = output.quantityLeft == "0"
-                                        let changedToAvailable = !isOutOfStock && item.lastKnownAvailability != true
-                                        let changedToUnavailable = isOutOfStock && item.lastKnownAvailability != false
-                                        let shouldNotify = changedToUnavailable || changedToAvailable
-                                        item.lastKnownAvailability = !isOutOfStock
-                                        let price = (output.originalPrice + output.shippingPrice) - (output.furtherDiscountAmount ?? 0)
-                                        return itemRepository
-                                            .save(item: item)
-                                            .transform(to: (item, shouldNotify, output.quantityLeft ?? "N/A", price))
-                                    }.tryFlatMap { item, shouldNotify, quantityLeft, price in
-                                        if shouldNotify {
-                                            let isInStock = item.lastKnownAvailability == true
-                                            let appFrontendURL = context.application.appFrontendURL ?? ""
-
-                                            let emailContent: String
-                                            let emailTitle: String
-                                            let subscription = subscriptions.first(where: { $0.$item.id == item.id })
-                                            let priceDouble = Double(price)/100
-                                            if isInStock {
-                                                emailTitle = "✅ item Available!"
-                                                emailContent = """
-                                                <p>[\(quantityLeft)][$\(priceDouble)] <a href="\(item.itemURL)">\(subscription?.customName ?? item.name ?? item.itemURL)</a> đã có hàng. Truy cập <a href="\(appFrontendURL)">link</a> để đặt hàng ngay.</p>
-                                                """
-                                            } else {
-                                                emailTitle = "⛔️ item Outstock!"
-                                                emailContent = """
-                                                  <p>Item <a href="\(item.itemURL)">\(subscription?.customName ?? item.name ?? item.itemURL)</a> đã hết hàng :(.</p>
-                                                """
-                                            }
-                                            
-                                            let emailAddress = EmailAddress(email: "minhdung910@gmail.com")
-                                            let emailAddress2 = EmailAddress(email: "chonusebay@gmail.com")
-
-                                            let emailConfig = Personalization(
-                                                to: [emailAddress, emailAddress2],
-                                                subject: emailTitle)
-
-                                            let fromEmail = EmailAddress(
-                                                email: "no-reply@1991ebay.com",
-                                                name: "1991Ebay")
-                                            
-                                            let email = SendGridEmail(
-                                                personalizations: [emailConfig],
-                                                from: fromEmail,
-                                                content: [
-                                                  ["type": "text/html",
-                                                   "value": emailContent]
-                                                ])
-
-                                            return try context
-                                                .application
-                                                .sendgrid
-                                                .client
-                                                .send(email: email,
-                                                      on: context.eventLoop)
-                                        } else {
-                                            return context.eventLoop.future()
-                                        }
-                                }.flatMapErrorThrowing { error in
-                                    context.application.logger.error("Failed item scan for \(item) with error \(error)")
-                                    return
-                                }
-                            }
-                            return self.runByChunk(futures: allPromises, eventLoop: context.eventLoop)
+                            return self.runByChunk(items: validItems, clientEbayRepository: clientEbayRepository, itemRepository: itemRepository, subscriptions: subscriptions, context: context)
                     }.flatMap {
-                        if !validItems.isEmpty {                            jobMonitoring.finishedAt = Date()
+                        if !validItems.isEmpty {
+                            jobMonitoring.finishedAt = Date()
                             return jobMonitoringRepository.save(jobMonitoring: jobMonitoring)
                         } else {
                             return context.eventLoop.future()
@@ -129,6 +64,84 @@ struct UpdateQuantityJob: ScheduledJob {
                     }
                 }
             }
+    }
+
+    private func runByChunk(items: [Item], chunk: Int = 5, clientEbayRepository: ClientEbayAPIRepository, itemRepository: DatabaseItemRepository, subscriptions: [SellerItemSubscription], context: QueueContext) -> EventLoopFuture<Void> {
+        let batchItems = items.prefix(chunk)
+        let batch = batchItems.map { (item: Item) in
+            return clientEbayRepository.getItemDetails(ebayItemID: item.itemID)
+                .flatMap { (output: EbayAPIItemOutput) -> EventLoopFuture<(Item, Bool, String, Int)> in
+                    let isOutOfStock = output.quantityLeft == "0"
+                    let changedToAvailable = !isOutOfStock && item.lastKnownAvailability != true
+                    let changedToUnavailable = isOutOfStock && item.lastKnownAvailability != false
+                    let shouldNotify = changedToUnavailable || changedToAvailable
+                    item.lastKnownAvailability = !isOutOfStock
+                    let price = (output.originalPrice + output.shippingPrice) - (output.furtherDiscountAmount ?? 0)
+                    return itemRepository
+                        .save(item: item)
+                        .transform(to: (item, shouldNotify, output.quantityLeft ?? "N/A", price))
+                }.tryFlatMap { item, shouldNotify, quantityLeft, price in
+                    if shouldNotify {
+                        let isInStock = item.lastKnownAvailability == true
+                        let appFrontendURL = context.application.appFrontendURL ?? ""
+
+                        let emailContent: String
+                        let emailTitle: String
+                        let subscription = subscriptions.first(where: { $0.$item.id == item.id })
+                        let priceDouble = Double(price)/100
+                        if isInStock {
+                            emailTitle = "✅ item Available!"
+                            emailContent = """
+                            <p>[\(quantityLeft)][$\(priceDouble)] <a href="\(item.itemURL)">\(subscription?.customName ?? item.name ?? item.itemURL)</a> đã có hàng. Truy cập <a href="\(appFrontendURL)">link</a> để đặt hàng ngay.</p>
+                            """
+                        } else {
+                            emailTitle = "⛔️ item Outstock!"
+                            emailContent = """
+                              <p>Item <a href="\(item.itemURL)">\(subscription?.customName ?? item.name ?? item.itemURL)</a> đã hết hàng :(.</p>
+                            """
+                        }
+                        
+                        let emailAddress = EmailAddress(email: "minhdung910@gmail.com")
+                        let emailAddress2 = EmailAddress(email: "chonusebay@gmail.com")
+
+                        let emailConfig = Personalization(
+                            to: [emailAddress, emailAddress2],
+                            subject: emailTitle)
+
+                        let fromEmail = EmailAddress(
+                            email: "no-reply@1991ebay.com",
+                            name: "1991Ebay")
+                        
+                        let email = SendGridEmail(
+                            personalizations: [emailConfig],
+                            from: fromEmail,
+                            content: [
+                              ["type": "text/html",
+                               "value": emailContent]
+                            ])
+
+                        return try context
+                            .application
+                            .sendgrid
+                            .client
+                            .send(email: email,
+                                  on: context.eventLoop)
+                    } else {
+                        return context.eventLoop.future()
+                    }
+            }.flatMapErrorThrowing { error in
+                context.application.logger.error("Failed item scan for \(item) with error \(error)")
+                return
+            }
+        }
+        return batch.flatten(on: context.eventLoop).flatMap { _ in
+            if batch.count <= chunk {
+                return context.eventLoop.future()
+            } else {
+                let newBatch = items.suffix(from: chunk)
+                return self.runByChunk(items: Array(newBatch), chunk: chunk, clientEbayRepository: clientEbayRepository, itemRepository: itemRepository, subscriptions: subscriptions, context: context)
+            }
+        }
     }
 
     private func runByChunk<T>(futures: [EventLoopFuture<T>], chunk: Int = 5, eventLoop: EventLoop) -> EventLoopFuture<Void> {

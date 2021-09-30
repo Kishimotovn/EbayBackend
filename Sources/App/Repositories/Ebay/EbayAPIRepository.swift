@@ -163,25 +163,25 @@ class ClientEbayAPIRepository: EbayAPIRepository {
                 .flatMap {
                     return furtherDiscountAmount
                 }.map { directDiscount, volumeDiscounts in
-                let detected = (directDiscount != nil && directDiscount! > 0) || (volumeDiscounts?.isEmpty == false)
-                return EbayAPIItemOutput(
-                    itemID: item.itemId,
-                    name: item.title,
-                    imageURL: item.image.imageUrl,
-                    itemURL: item.itemWebUrl,
-                    condition: item.condition,
-                    shippingPrice: normalizedShippingPrice,
-                    originalPrice: normalizedOriginalPrice,
-                    sellerName: item.seller.username,
-                    sellerFeedbackCount: item.seller.feedbackScore,
-                    sellerScore: 0,
-                    itemEndDate: endDate,
-                    quantityLeft: quantityLeft,
-                    volumeDiscounts: volumeDiscounts,
-                    furtherDiscountAmount: directDiscount,
-                    furtherDiscountDetected: detected
-                )
-            }
+                    let detected = (directDiscount != nil && directDiscount! > 0) || (volumeDiscounts?.isEmpty == false)
+                    return EbayAPIItemOutput(
+                        itemID: item.itemId,
+                        name: item.title,
+                        imageURL: item.image.imageUrl ?? "",
+                        itemURL: item.itemWebUrl,
+                        condition: item.condition,
+                        shippingPrice: normalizedShippingPrice,
+                        originalPrice: normalizedOriginalPrice,
+                        sellerName: item.seller?.username,
+                        sellerFeedbackCount: item.seller?.feedbackScore,
+                        sellerScore: Double(item.seller?.feedbackPercentage ?? ""),
+                        itemEndDate: endDate,
+                        quantityLeft: quantityLeft,
+                        volumeDiscounts: volumeDiscounts,
+                        furtherDiscountAmount: directDiscount,
+                        furtherDiscountDetected: detected
+                    )
+                }
         }
     }
 
@@ -322,7 +322,7 @@ class ClientEbayAPIRepository: EbayAPIRepository {
         }.flatMap { (response: ClientResponse) in
             do {
                 let ebayResponse = try response.content.decode(EbayGetItemResponse.self)
-                if self.application.masterSellerAvoidedSellers?.contains(ebayResponse.seller.username) == true {
+                if self.application.masterSellerAvoidedSellers?.contains(ebayResponse.seller?.username ?? "") == true {
                     return self.appMetaDatas.incrementScanCount().transform(to: nil)
                 } else {
                     return self.appMetaDatas.incrementScanCount().transform(to: ebayResponse.itemId)
@@ -568,7 +568,7 @@ struct EbayGetItemResponse: Content {
     var mpn: String?
     var price: ConvertedAmount
     var quantityLimitPerBuyer: Int?
-    var seller: SellerDetail
+    var seller: SellerDetail?
     var shippingOptions: [ShippingOption]
     var shortDescription: String?
     var size: String?
@@ -610,8 +610,9 @@ extension EbayGetItemResponse {
     }
 
     struct SellerDetail: Content {
-        var feedbackScore: Int
-        var username: String
+        var feedbackPercentage: String?
+        var feedbackScore: Int?
+        var username: String?
     }
 
     struct MarketingPrice: Content {
@@ -624,8 +625,8 @@ extension EbayGetItemResponse {
     struct Address: Content {
         var addressLine1: String?
         var addressLine2: String?
-        var city: String
-        var country: String
+        var city: String?
+        var country: String?
         var county: String?
         var postalCode: String?
         var stateOrProvince: String?
@@ -633,7 +634,7 @@ extension EbayGetItemResponse {
 
     struct Image: Content {
         var height: Int?
-        var imageUrl: String
+        var imageUrl: String?
         var width: Int?
     }
 
