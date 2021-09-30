@@ -114,11 +114,10 @@ struct UpdateQuantityJob: ScheduledJob {
                                         } else {
                                             return context.eventLoop.future()
                                         }
+                                }.flatMapErrorThrowing { error in
+                                    context.application.logger.error("Failed item scan for \(item) with error \(error)")
+                                    return
                                 }
-//                                    .flatMapErrorThrowing { error in
-//                                    context.application.logger.error("Failed item scan for \(item) with error \(error)")
-//                                    return
-//                                }
                             }
                             return self.runByChunk(futures: allPromises, eventLoop: context.eventLoop)
                     }.flatMap {

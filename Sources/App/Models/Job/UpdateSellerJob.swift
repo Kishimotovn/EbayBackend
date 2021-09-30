@@ -204,10 +204,10 @@ struct UpdateSellerJob: ScheduledJob {
                                     return context.eventLoop.future()
                                 }
                             }
-//                            .flatMapErrorThrowing { error in
-//                                context.application.logger.error("Failed seller scan for \(subscription) with error \(error)")
-//                                return
-//                            }
+                            .flatMapErrorThrowing { error in
+                                context.application.logger.error("Failed seller scan for \(subscription) with error \(error)")
+                                return
+                            }
                     }
 
                 return self.runByChunk(futures: allPromises, eventLoop: context.eventLoop)

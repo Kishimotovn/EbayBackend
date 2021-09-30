@@ -610,7 +610,6 @@ extension EbayGetItemResponse {
     }
 
     struct SellerDetail: Content {
-        var feedbackPercentage: String?
         var feedbackScore: Int
         var username: String
     }
