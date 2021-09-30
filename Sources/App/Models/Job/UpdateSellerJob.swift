@@ -198,14 +198,16 @@ struct UpdateSellerJob: ScheduledJob {
                                   ["type": "text/html",
                                    "value": emailContent]
                                 ])
-                            try emails.append(context
-                                            .application
-                                            .sendgrid
-                                            .client
-                                            .send(email: email,
-                                                  on: context.eventLoop))
+                            try emails.append(
+                                context
+                                    .application
+                                    .sendgrid
+                                    .client
+                                    .send(email: email,
+                                          on: context.eventLoop))
                         }
-
+                        
+                        context.application.logger.info("sending \(emails.count) emails to \(context.application.notificationEmails)")
                         return emails
                             .flatten(on: context.eventLoop)
                     } else {
