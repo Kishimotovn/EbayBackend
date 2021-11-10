@@ -49,7 +49,8 @@ class ClientEbayAPIRepository: EbayAPIRepository {
                 headers: [
                     "Accept": "application/json",
                     "X-EBAY-C-MARKETPLACE-ID": "EBAY_US",
-                    "Authorization": "Bearer \(self.currentToken?.accessToken ?? "")"
+                    "Authorization": "Bearer \(self.currentToken?.accessToken ?? "")",
+                    "Cache-Control": "no-store, must-revalidate"
             ]) { (request: inout ClientRequest) throws in
                 let input = EbaySearchItemInput(q: keyword.components(separatedBy: " ").joined(separator: ","), includedSellers: [seller], offset: 0, limit: 100)
                 try request.query.encode(input)
@@ -71,7 +72,8 @@ class ClientEbayAPIRepository: EbayAPIRepository {
                 headers: [
                     "Accept": "application/json",
                     "X-EBAY-C-MARKETPLACE-ID": "EBAY_US",
-                    "Authorization": "Bearer \(self.currentToken?.accessToken ?? "")"
+                    "Authorization": "Bearer \(self.currentToken?.accessToken ?? "")",
+                    "Cache-Control": "no-store, must-revalidate"
             ]) { (request: inout ClientRequest) throws in
                 let input = EbaySearchItemInput(q: keyword, includedSellers: [seller], offset: offset)
                 try request.query.encode(input)
@@ -115,7 +117,8 @@ class ClientEbayAPIRepository: EbayAPIRepository {
                     headers: [
                         "Accept": "application/json",
                         "X-EBAY-C-MARKETPLACE-ID": "EBAY_US",
-                        "Authorization": "Bearer \(self.currentToken?.accessToken ?? "")"
+                        "Authorization": "Bearer \(self.currentToken?.accessToken ?? "")",
+                        "Cache-Control": "no-store, must-revalidate"
                 ])
             }
         .tryFlatMap { response throws -> EventLoopFuture<EbayAPIItemOutput> in
@@ -292,7 +295,8 @@ class ClientEbayAPIRepository: EbayAPIRepository {
             headers: [
                 "Accept": "application/json",
                 "X-EBAY-C-MARKETPLACE-ID": "EBAY_US",
-                "Authorization": "Bearer \(self.currentToken?.accessToken ?? "")"
+                "Authorization": "Bearer \(self.currentToken?.accessToken ?? "")",
+                "Cache-Control": "no-store, must-revalidate"
         ]) { (request: inout ClientRequest) throws in
             let input = EbaySearchItemInput(epid: epid, excludedSellers: self.application.masterSellerAvoidedSellers)
             try request.query.encode(input)
@@ -315,7 +319,8 @@ class ClientEbayAPIRepository: EbayAPIRepository {
                                headers: [
                                     "Accept": "application/json",
                                     "X-EBAY-C-MARKETPLACE-ID": "EBAY_US",
-                                    "Authorization": "Bearer \(self.currentToken?.accessToken ?? "")"
+                                    "Authorization": "Bearer \(self.currentToken?.accessToken ?? "")",
+                                    "Cache-Control": "no-store, must-revalidate"
         ]) { (request: inout ClientRequest) throws in
             let input = EbaySearchLegacyItemInput(legacyItemID: itemID)
             try request.query.encode(input)
@@ -344,7 +349,8 @@ class ClientEbayAPIRepository: EbayAPIRepository {
             headers: [
                 "Accept": "application/json",
                 "X-EBAY-C-MARKETPLACE-ID": "EBAY_US",
-                "Authorization": "Bearer \(self.currentToken?.accessToken ?? "")"
+                "Authorization": "Bearer \(self.currentToken?.accessToken ?? "")",
+                "Cache-Control": "no-store, must-revalidate"
         ]) { (request: inout ClientRequest) throws in
             let input = EbaySearchItemInput(q: itemID, excludedSellers: self.application.masterSellerAvoidedSellers)
             try request.query.encode(input)
