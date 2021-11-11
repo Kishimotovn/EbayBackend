@@ -44,6 +44,7 @@ struct UpdateSellerJob: ScheduledJob {
     
     private func runByChunk(subscriptions: [SellerSellerSubscription], chunk: Int = 5, clientEbayRepository: ClientEbayAPIRepository, context: QueueContext) -> EventLoopFuture<Void> {
         let batchSubcription = subscriptions.prefix(chunk)
+        context.application.logger.info("Running batch with count: \(batchSubcription.count)")
 
         let batch = batchSubcription.map { subscription in
             return clientEbayRepository
@@ -239,9 +240,11 @@ struct UpdateSellerJob: ScheduledJob {
 
         return batch.flatten(on: context.eventLoop).flatMap { _ -> EventLoopFuture<Void> in
             if batchSubcription.count <= chunk {
+                context.application.logger.info("End... no more chunks")
                 return context.eventLoop.future()
             } else {
                 let newBatch = subscriptions.suffix(from: chunk)
+                context.application.logger.info("Continue with batch: \(newBatch.count)")
                 return self.runByChunk(subscriptions: Array(newBatch), chunk: chunk, clientEbayRepository: clientEbayRepository, context: context)
             }
         }
