@@ -64,6 +64,23 @@ struct UpdateSellerJob: ScheduledJob {
                     }.count
                     let shouldNotify = !changes.isEmpty && changesCount != (reorderCount + changesThatAreNotPriceCount)
                     subscription.response = response
+                    
+                    let insertChangesCount = changes.compactMap{ $0.insert }.count
+                    let changesThatArePriceChangesCount = changes.compactMap { $0.replace }.filter {
+                        return $0.oldItem.price != $0.newItem.price || $0.oldItem.marketingPrice != $0.newItem.marketingPrice
+                    }.count
+                    let deleteChangesCount = changes.compactMap{ $0.delete }.count
+                    
+                    context.application.logger.info("===========================================")
+                    context.application.logger.info("Change count for \(subscription.sellerName) - \(subscription.keyword): \(changesCount)")
+                    context.application.logger.info("Reorder count for \(subscription.sellerName) - \(subscription.keyword): \(reorderCount)")
+                    context.application.logger.info("Changes that are not price count for \(subscription.sellerName) - \(subscription.keyword): \(changesThatAreNotPriceCount)")
+                    context.application.logger.info("Should notify for \(subscription.sellerName) - \(subscription.keyword): \(shouldNotify)")
+                    context.application.logger.info("Insert count \(subscription.sellerName) - \(subscription.keyword): \(insertChangesCount)")
+                    context.application.logger.info("Delete count for \(subscription.sellerName) - \(subscription.keyword): \(deleteChangesCount)")
+                    context.application.logger.info("Price change count for \(subscription.sellerName) - \(subscription.keyword): \(changesThatArePriceChangesCount)")
+                    context.application.logger.info("===========================================")
+
                     return subscription
                         .save(on: context.application.db)
                         .transform(to: (response, shouldNotify, changes))
@@ -215,7 +232,7 @@ struct UpdateSellerJob: ScheduledJob {
                     }
                 }
                 .flatMapErrorThrowing { error in
-                    context.application.logger.error("Failed seller scan for \(subscription.$seller.id) - \(subscription.keyword) with error \(error)")
+                    context.application.logger.error("Failed seller scan for \(subscription.sellerName) - \(subscription.keyword) with error \(error)")
                     return
                 }
         }
