@@ -135,7 +135,7 @@ struct UpdateQuantityJob: ScheduledJob {
             }
         }
         return batch.flatten(on: context.eventLoop).flatMap { _ in
-            if batch.count <= chunk {
+            if batch.count < chunk {
                 return context.eventLoop.future()
             } else {
                 let newBatch = items.suffix(from: chunk)
@@ -148,7 +148,7 @@ struct UpdateQuantityJob: ScheduledJob {
         let batch = futures.prefix(chunk)
 
         return batch.flatten(on: eventLoop).flatMap { _ in
-            if batch.count <= chunk {
+            if batch.count < chunk {
                 return eventLoop.future()
             } else {
                 let newBatch = futures.suffix(from: chunk)

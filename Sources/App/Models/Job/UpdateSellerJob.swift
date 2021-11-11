@@ -239,7 +239,7 @@ struct UpdateSellerJob: ScheduledJob {
         }
 
         return batch.flatten(on: context.eventLoop).flatMap { _ -> EventLoopFuture<Void> in
-            if batchSubcription.count <= chunk {
+            if batchSubcription.count < chunk {
                 context.application.logger.info("End... no more chunks")
                 return context.eventLoop.future()
             } else {
