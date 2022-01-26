@@ -11,15 +11,7 @@ import Fluent
 import FluentPostgresDriver
 
 public func databases(app: Application) throws {
-//    app.databases.use(.postgres(
-//        hostname: "ec2-54-146-4-66.compute-1.amazonaws.com",
-//        port: 5432,
-//        username: "ymtwkzhndbzcxg",
-//        password: "ea570d9b71b2075811e869a8b6d8b0f32613c224768e9500f080af678ca69789",
-//        database: "d5acg9sgiqcfkv",
-//        tlsConfiguration: TLSConfiguration.forClient(certificateVerification: .none)
-//    ), as: .psql)
-    if let databaseURL = Environment.process.DATABASE_URL {
+    if let databaseURL = Environment.process.DATABASE_URL_2 {
         var config = PostgresConfiguration(url: databaseURL)!
         config.tlsConfiguration = TLSConfiguration.forClient(certificateVerification: .none)
         try app.databases.use(.postgres(configuration: config), as: .psql)
