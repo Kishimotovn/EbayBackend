@@ -8,7 +8,6 @@
 import Foundation
 import Vapor
 import Fluent
-import CloudKit
 
 struct BuyerTrackedItemController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
