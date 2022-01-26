@@ -77,6 +77,12 @@ public func setupRepositories(app: Application) throws {
     app.sellerSubscriptions.use {
         DatabaseSellerSellerSubscriptionRepository(db: $0.db)
     }
+    app.trackedItems.use {
+        DatabaseTrackedItemRepository(db: $0.db)
+    }
+    app.buyerTrackedItems.use {
+        DatabaseBuyerTrackedItemRepository(db: $0.db)
+    }
 
     app.ebayAppID = Environment.process.EBAY_APP_ID
     app.ebayAppSecret = Environment.process.EBAY_APP_SECRET

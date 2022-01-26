@@ -22,13 +22,13 @@ volumes:
 x-shared_environment: &shared_environment
   LOG_LEVEL: ${LOG_LEVEL:-debug}
   DATABASE_HOST: db
-  DATABASE_NAME: vapor_database
+  DATABASE_NAME: ebay_1991
   DATABASE_USERNAME: vapor_username
   DATABASE_PASSWORD: vapor_password
 
 services:
   app:
-    image: EbayProject:latest
+    image: Ebay1991:latest
     build:
       context: .
     environment:
@@ -40,7 +40,7 @@ services:
 #    user: '0' # uncomment to run as root for testing purposes even though Dockerfile defines 'vapor' user.
     command: ["serve", "--env", "production", "--hostname", "0.0.0.0", "--port", "8080"]
   migrate:
-    image: EbayProject:latest
+    image: Ebay1991:latest
     build:
       context: .
     environment:
@@ -51,7 +51,7 @@ services:
     deploy:
       replicas: 0
   revert:
-    image: EbayProject:latest
+    image: Ebay1991:latest
     build:
       context: .
     environment:
@@ -62,13 +62,20 @@ services:
     deploy:
       replicas: 0
   db:
-    image: postgres:12-alpine
+    image: postgres:12.7
     volumes:
       - db_data:/var/lib/postgresql/data/pgdata
     environment:
       PGDATA: /var/lib/postgresql/data/pgdata
       POSTGRES_USER: vapor_username
       POSTGRES_PASSWORD: vapor_password
-      POSTGRES_DB: vapor_database
+      POSTGRES_DB: ebay_1991
     ports:
       - '5432:5432'
+  cache:
+    image: redis
+    container_name: ebay_1991_cache
+    ports:
+      - 6379:6379
+    networks:
+      - default

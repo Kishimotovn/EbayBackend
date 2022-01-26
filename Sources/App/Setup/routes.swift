@@ -20,4 +20,6 @@ func routes(_ app: Application) throws {
     try versionedRoutes.register(collection: SellerBuyerController())
     try versionedRoutes.register(collection: SellerFeaturedController())
     try versionedRoutes.register(collection: SellerSubcriptionController())
+    try versionedRoutes.register(collection: SellerTrackedItemController())
+    try versionedRoutes.register(collection: BuyerTrackedItemController())
 }

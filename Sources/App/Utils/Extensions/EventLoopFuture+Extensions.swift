@@ -23,3 +23,9 @@ extension EventLoopFuture {
     }
   }
 }
+
+extension EventLoopFuture where Value: Collection {
+    func first() -> EventLoopFuture<Value.Element?> {
+        return self.map { $0.first }
+    }
+}

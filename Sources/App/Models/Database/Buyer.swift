@@ -38,6 +38,9 @@ final class Buyer: Model, Content {
     @Children(for: \.$buyer)
     var buyerWarehouseAddresses: [BuyerWarehouseAddress]
 
+    @Siblings(through: BuyerTrackedItem.self, from: \.$buyer, to: \.$trackedItem)
+    var trackedItems: [TrackedItem]
+
     init() { }
 
     init(id: UUID? = nil,
