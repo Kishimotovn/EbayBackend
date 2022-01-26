@@ -30,6 +30,7 @@ struct DatabaseBuyerTrackedItemRepository: BuyerTrackedItemRepository, DatabaseR
         self.apply(filter, to: query)
         _ = query.sort(\.$createdAt, .descending)
         query.with(\.$trackedItem)
+        query.with(\.$buyer)
         return query.all()
     }
 

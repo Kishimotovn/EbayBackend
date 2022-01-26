@@ -25,6 +25,7 @@ extension Application {
 protocol EmailRepository {
     func sendItemAvailableEmail(for item: Item) throws -> EventLoopFuture<Void>
     func sendOrderUpdateEmail(for order: Order) throws -> EventLoopFuture<Void>
+    func sendTrackedItemUpdateEmail(for item: TrackedItem) throws -> EventLoopFuture<Void>
     func sendResetPasswordEmail(for buyer: Buyer,
                                 resetPasswordToken: BuyerResetPasswordToken) throws -> EventLoopFuture<Void>
 }
@@ -32,6 +33,25 @@ protocol EmailRepository {
 struct SendGridEmailRepository: EmailRepository {
     let appFrontendURL: String
     let request: Request
+    
+    func sendTrackedItemUpdateEmail(for item: TrackedItem) throws -> EventLoopFuture<Void> {
+        return try request
+            .buyerTrackedItems
+            .find(filter: .init(trackedItemID: item.requireID()))
+            .tryFlatMap { buyerItems in
+                return try buyerItems.map { buyerItem in
+                    let email = buyerItem.buyer.email
+                    let content: String
+                    
+                    if !buyerItem.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        content = "\(buyerItem.note) (Mã tracking: \(buyerItem.trackedItem.trackingNumber)) đã được xác nhận về tới kho."
+                    } else {
+                        content = "Mặt hàng với mã tracking: \(buyerItem.trackedItem.trackingNumber) đã được xác nhận về tới kho."
+                    }
+                    return try self.sendEmail(to: email, title: "🎉🥳 Hàng đã về tới kho!", content: content)
+                }.flatten(on: self.request.eventLoop)
+            }
+    }
 
     func sendResetPasswordEmail(for buyer: Buyer,
                                 resetPasswordToken: BuyerResetPasswordToken) throws -> EventLoopFuture<Void> {

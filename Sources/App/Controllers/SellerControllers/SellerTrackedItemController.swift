@@ -79,9 +79,17 @@ struct SellerTrackedItemController: RouteCollection {
             ).first()
             .flatMap { existingTrackedItem in
                 if let trackedItem = existingTrackedItem {
+                    let trackedItemStateChanged = trackedItem.state != .receivedAtWarehouse
                     trackedItem.state = .receivedAtWarehouse
                     trackedItem.sellerNote = sellerNote ?? ""
                     return request.trackedItems.save(trackedItem)
+                        .tryFlatMap { _ -> EventLoopFuture<Void> in
+                            if trackedItemStateChanged {
+                                return try request.emails.sendTrackedItemUpdateEmail(for: trackedItem)
+                            } else {
+                                return request.eventLoop.future()
+                            }
+                        }
                         .transform(to: trackedItem)
                 } else {
                     let trackedItem = TrackedItem(sellerID: sellerID, trackingNumber: trackingNumber, state: .receivedAtWarehouse, sellerNote: sellerNote ?? "")
