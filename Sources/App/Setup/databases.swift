@@ -20,7 +20,9 @@ public func databases(app: Application) throws {
 //        tlsConfiguration: TLSConfiguration.forClient(certificateVerification: .none)
 //    ), as: .psql)
     if let databaseURL = Environment.process.DATABASE_URL {
-        try app.databases.use(.postgres(url: databaseURL), as: .psql)
+        var config = PostgresConfiguration(url: databaseURL)!
+        config.tlsConfiguration = TLSConfiguration.forClient(certificateVerification: .none)
+        try app.databases.use(.postgres(configuration: config), as: .psql)
     } else {
         app.databases.use(.postgres(
             hostname: Environment.get("DATABASE_HOST") ?? "localhost",
