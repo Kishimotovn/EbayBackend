@@ -30,6 +30,9 @@ final class TrackedItem: Model, Content {
     @Field(key: "state")
     var state: State
 
+    @Children(for: \.$trackedItem)
+    var buyerTrackedItems: [BuyerTrackedItem]
+
     init() {}
 
     init(

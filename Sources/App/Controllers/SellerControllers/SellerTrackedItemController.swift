@@ -33,7 +33,17 @@ struct SellerTrackedItemController: RouteCollection {
             .first()
             .flatMap { (trackedItem: TrackedItem?) -> EventLoopFuture<Void> in
                 if let trackedItem = trackedItem {
-                    return request.trackedItems.delete(trackedItem)
+                    return trackedItem
+                        .$buyerTrackedItems
+                        .get(on: request.db)
+                        .flatMap { buyerTrackedItems in
+                            return request.db.transaction { db in
+                                return buyerTrackedItems.delete(on: db)
+                                    .flatMap {
+                                        return trackedItem.delete(on: db)
+                                    }
+                            }
+                        }
                 } else {
                     return request.eventLoop.future()
                 }
@@ -80,6 +90,7 @@ struct SellerTrackedItemController: RouteCollection {
             .flatMap { existingTrackedItem in
                 if let trackedItem = existingTrackedItem {
                     let trackedItemStateChanged = trackedItem.state != .receivedAtWarehouse
+                    trackedItem.trackingNumber = trackingNumber
                     trackedItem.state = .receivedAtWarehouse
                     trackedItem.sellerNote = sellerNote ?? ""
                     return request.trackedItems.save(trackedItem)
@@ -101,11 +112,19 @@ struct SellerTrackedItemController: RouteCollection {
 
     private func getPaginatedHandler(request: Request) throws -> EventLoopFuture<Page<TrackedItem>> {
         let pageRequest = try request.query.decode(PageRequest.self)
+
+        struct QueryBody: Content {
+            let searchString: String?
+        }
+
         guard let masterSellerID = request.application.masterSellerID else {
             throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
         }
 
-        return request.trackedItems.paginated(filter: .init(sellerID: masterSellerID), pageRequest: pageRequest)
+        let input = try request.query.decode(QueryBody.self)
+        let searchStrings = [input.searchString].compactMap { $0 }
+
+        return request.trackedItems.paginated(filter: .init(sellerID: masterSellerID, searchStrings: searchStrings), pageRequest: pageRequest)
     }
 }
 

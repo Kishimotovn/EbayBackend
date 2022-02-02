@@ -37,7 +37,7 @@ struct SendGridEmailRepository: EmailRepository {
     func sendTrackedItemUpdateEmail(for item: TrackedItem) throws -> EventLoopFuture<Void> {
         return try request
             .buyerTrackedItems
-            .find(filter: .init(trackedItemID: item.requireID()))
+            .find(filter: .init(trackedItemIDs: [item.requireID()]))
             .tryFlatMap { buyerItems in
                 return try buyerItems.map { buyerItem in
                     let email = buyerItem.buyer.email

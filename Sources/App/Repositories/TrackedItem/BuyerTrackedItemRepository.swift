@@ -12,7 +12,7 @@ import Fluent
 struct BuyerTrackedItemFilter {
     var ids: [BuyerTrackedItem.IDValue]? = nil
     var buyerID: Buyer.IDValue? = nil
-    var trackedItemID: TrackedItem.IDValue? = nil
+    var trackedItemIDs: [TrackedItem.IDValue]? = nil
     var states: [TrackedItem.State]? = nil
     var limit: Int? = nil
 }
@@ -49,8 +49,8 @@ struct DatabaseBuyerTrackedItemRepository: BuyerTrackedItemRepository, DatabaseR
         if let buyerID = filter.buyerID {
             query.filter(\.$buyer.$id == buyerID)
         }
-        if let trackedItemID = filter.trackedItemID {
-            query.filter(\.$trackedItem.$id == trackedItemID)
+        if let trackedItemIDs = filter.trackedItemIDs, !trackedItemIDs.isEmpty {
+            query.filter(\.$trackedItem.$id ~~ trackedItemIDs)
         }
         if let states = filter.states {
             query

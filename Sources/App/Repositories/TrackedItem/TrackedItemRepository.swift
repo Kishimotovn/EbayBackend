@@ -43,16 +43,21 @@ struct DatabaseTrackedItemRepository: TrackedItemRepository, DatabaseRepository 
     }
 
     private func apply(_ filter: TrackedItemFilter, to query: QueryBuilder<TrackedItem>) {
-        if let ids = filter.ids {
+        if let ids = filter.ids, !ids.isEmpty {
             query.filter(\.$id ~~ ids)
         }
         if let sellerID = filter.sellerID {
             query.filter(\.$seller.$id == sellerID)
         }
-        if let trackingNumbers = filter.trackingNumbers {
-            query.filter(\.$trackingNumber ~~ trackingNumbers)
+        if let trackingNumbers = filter.trackingNumbers, !trackingNumbers.isEmpty {
+            query.group(.or) { builder in
+                builder.filter(\.$trackingNumber ~~ trackingNumbers)
+                trackingNumbers.forEach { number in
+                    builder.filter(.sql(raw: "\(number)::text ILIKE CONCAT('%',\(TrackedItem.schema).tracking_number)"))
+                }
+            }
         }
-        if let searchStrings = filter.searchStrings {
+        if let searchStrings = filter.searchStrings, !searchStrings.isEmpty {
             query.group(.or) { builder in
                 searchStrings.forEach { searchString in
                     builder.filter(.sql(raw: "\(TrackedItem.schema).tracking_number"), .custom("ILIKE"), .bind("%\(searchString)"))
@@ -66,7 +71,7 @@ struct DatabaseTrackedItemRepository: TrackedItemRepository, DatabaseRepository 
             query.join(BuyerTrackedItem.self, on: \BuyerTrackedItem.$trackedItem.$id == \TrackedItem.$id)
                 .filter(BuyerTrackedItem.self, \.$buyer.$id == buyerID)
         }
-        if let states = filter.states {
+        if let states = filter.states, !states.isEmpty {
             query.filter(\.$state ~~ states)
         }
     }

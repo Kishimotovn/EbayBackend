@@ -11,12 +11,17 @@ import Fluent
 
 protocol DatabaseRepository {
     var db: Database { get }
+    func create<M: Model>(_ models: [M]) -> EventLoopFuture<Void>
     func save<M: Model>(_ model: M) -> EventLoopFuture<Void>
     func delete<M: Model>(_ model: M) -> EventLoopFuture<Void>
     func delete<M: Model>(modelType: M.Type, id: M.IDValue) -> EventLoopFuture<Void>
 }
 
 extension DatabaseRepository {
+    func create<M: Model>(_ models: [M]) -> EventLoopFuture<Void> {
+        return models.create(on: self.db)
+    }
+
     func save<M: Model>(_ model: M) -> EventLoopFuture<Void> {
         return model.save(on: self.db)
     }
