@@ -124,7 +124,14 @@ struct SellerTrackedItemController: RouteCollection {
         let input = try request.query.decode(QueryBody.self)
         let searchStrings = [input.searchString].compactMap { $0 }
 
-        return request.trackedItems.paginated(filter: .init(sellerID: masterSellerID, searchStrings: searchStrings), pageRequest: pageRequest)
+        if pageRequest.per <= 0 {
+            return request.trackedItems.find(filter: .init(sellerID: masterSellerID, searchStrings: searchStrings))
+                .map { items in
+                    return Page(items: items, metadata: .init(page: 1, per: -1, total: items.count))
+                }
+        } else {
+            return request.trackedItems.paginated(filter: .init(sellerID: masterSellerID, searchStrings: searchStrings), pageRequest: pageRequest)
+        }
     }
 }
 

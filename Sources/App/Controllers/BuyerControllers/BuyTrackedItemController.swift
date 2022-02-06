@@ -97,8 +97,15 @@ struct BuyerTrackedItemController: RouteCollection {
         let buyer = try request.auth.require(Buyer.self)
         let buyerID = try buyer.requireID()
         let pageRequest = try request.query.decode(PageRequest.self)
-
-        return request.buyerTrackedItems.paginated(filter: .init(buyerID: buyerID, states: [.registered]), pageRequest: pageRequest)
+        
+        if pageRequest.per <= 0 {
+            return request.buyerTrackedItems.find(filter: .init(buyerID: buyerID, states: [.registered]))
+                .map { items in
+                    return Page(items: items, metadata: .init(page: 1, per: -1, total: items.count))
+                }
+        } else {
+            return request.buyerTrackedItems.paginated(filter: .init(buyerID: buyerID, states: [.registered]), pageRequest: pageRequest)
+        }
     }
 
     private func getPaginatedReceivedHandler(request: Request) throws -> EventLoopFuture<Page<BuyerTrackedItem>> {
