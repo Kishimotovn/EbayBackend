@@ -53,7 +53,7 @@ struct DatabaseTrackedItemRepository: TrackedItemRepository, DatabaseRepository 
             query.group(.or) { builder in
                 builder.filter(\.$trackingNumber ~~ trackingNumbers)
                 trackingNumbers.forEach { number in
-                    builder.filter(.sql(raw: "\(number)::text ILIKE CONCAT('%',\(TrackedItem.schema).tracking_number)"))
+                    builder.filter(.sql(raw: "'\(number)'::text ILIKE CONCAT('%',\(TrackedItem.schema).tracking_number)"))
                 }
             }
         }
