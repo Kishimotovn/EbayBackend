@@ -15,6 +15,7 @@ struct TrackedItemFilter {
     var sellerID: Seller.IDValue?? = nil
     var trackingNumbers: [String]? = nil
     var searchStrings: [String]? = nil
+    var dateRange: DateInterval? = nil
     var limit: Int? = nil
     var buyerID: Buyer.IDValue? = nil
     var states: [TrackedItem.State]? = nil
@@ -63,6 +64,10 @@ struct DatabaseTrackedItemRepository: TrackedItemRepository, DatabaseRepository 
                     builder.filter(.sql(raw: "\(TrackedItem.schema).tracking_number"), .custom("ILIKE"), .bind("%\(searchString)"))
                 }
             }
+        }
+        if let dateRange = filter.dateRange {
+            query.filter(.sql(raw: "\(TrackedItem.schema).created_at::DATE"), .greaterThanOrEqual, .bind(dateRange.start))
+            query.filter(.sql(raw: "\(TrackedItem.schema).created_at::DATE"), .lessThanOrEqual, .bind(dateRange.end))
         }
         if let limit = filter.limit {
             query.limit(limit)
