@@ -65,6 +65,10 @@ struct BuyerTrackedItemController: RouteCollection {
 
         try SearchTrackedItemsInput.validate(content: request)
         let input = try request.content.decode(SearchTrackedItemsInput.self)
+        
+        guard !input.validTrackingNumbers().isEmpty else {
+            return request.eventLoop.future([])
+        }
 
         return request.trackedItems
             .find(filter: .init(searchStrings: input.validTrackingNumbers()))
