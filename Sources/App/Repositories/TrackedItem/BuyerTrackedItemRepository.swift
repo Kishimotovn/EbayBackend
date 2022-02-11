@@ -28,17 +28,25 @@ struct DatabaseBuyerTrackedItemRepository: BuyerTrackedItemRepository, DatabaseR
     func find(filter: BuyerTrackedItemFilter) -> EventLoopFuture<[BuyerTrackedItem]> {
         let query = BuyerTrackedItem.query(on: db)
         self.apply(filter, to: query)
-        _ = query.sort(\.$createdAt, .descending)
         query.with(\.$trackedItem)
         query.with(\.$buyer)
+        _ = query
+            .join(parent: \.$trackedItem)
+            .sort(\.$createdAt, .descending)
+            .sort(TrackedItem.self, \.$state, .descending)
+            .sort(TrackedItem.self, \.$updatedAt, .ascending)
         return query.all()
     }
 
     func paginated(filter: BuyerTrackedItemFilter, pageRequest: PageRequest) -> EventLoopFuture<Page<BuyerTrackedItem>> {
         let query = BuyerTrackedItem.query(on: db)
         self.apply(filter, to: query)
-        _ = query.sort(\.$createdAt, .descending)
         query.with(\.$trackedItem)
+        _ = query
+            .join(parent: \.$trackedItem)
+            .sort(\.$createdAt, .descending)
+            .sort(TrackedItem.self, \.$state, .descending)
+            .sort(TrackedItem.self, \.$updatedAt, .ascending)
         return query.paginate(pageRequest)
     }
 
