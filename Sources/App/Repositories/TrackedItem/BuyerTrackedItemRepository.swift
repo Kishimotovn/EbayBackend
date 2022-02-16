@@ -31,10 +31,10 @@ struct DatabaseBuyerTrackedItemRepository: BuyerTrackedItemRepository, DatabaseR
         query.with(\.$trackedItem)
         query.with(\.$buyer)
         _ = query
-            .join(parent: \.$trackedItem)
+            .join(TrackedItemAlias.self, on: \TrackedItemAlias.$id == \BuyerTrackedItem.$trackedItem.$id)
             .sort(\.$createdAt, .descending)
-            .sort(TrackedItem.self, \.$state, .descending)
-            .sort(TrackedItem.self, \.$updatedAt, .ascending)
+            .sort(TrackedItemAlias.self, \.$state, .descending)
+            .sort(TrackedItemAlias.self, \.$updatedAt, .ascending)
         return query.all()
     }
 
@@ -43,10 +43,10 @@ struct DatabaseBuyerTrackedItemRepository: BuyerTrackedItemRepository, DatabaseR
         self.apply(filter, to: query)
         query.with(\.$trackedItem)
         _ = query
-            .join(parent: \.$trackedItem)
+            .join(TrackedItemAlias.self, on: \TrackedItemAlias.$id == \BuyerTrackedItem.$trackedItem.$id)
             .sort(\.$createdAt, .descending)
-            .sort(TrackedItem.self, \.$state, .descending)
-            .sort(TrackedItem.self, \.$updatedAt, .ascending)
+            .sort(TrackedItemAlias.self, \.$state, .descending)
+            .sort(TrackedItemAlias.self, \.$updatedAt, .ascending)
         return query.paginate(pageRequest)
     }
 
@@ -60,7 +60,7 @@ struct DatabaseBuyerTrackedItemRepository: BuyerTrackedItemRepository, DatabaseR
         if let trackedItemIDs = filter.trackedItemIDs, !trackedItemIDs.isEmpty {
             query.filter(\.$trackedItem.$id ~~ trackedItemIDs)
         }
-        if let states = filter.states {
+        if let states = filter.states, !states.isEmpty {
             query
                 .join(TrackedItem.self, on: \TrackedItem.$id == \BuyerTrackedItem.$trackedItem.$id)
                 .filter(TrackedItem.self, \.$state ~~ states)
@@ -69,6 +69,11 @@ struct DatabaseBuyerTrackedItemRepository: BuyerTrackedItemRepository, DatabaseR
             query.limit(limit)
         }
     }
+}
+
+final class TrackedItemAlias: ModelAlias {
+    static let name = "alias_tracked_items"
+    let model = TrackedItem()
 }
 
 struct BuyerTrackedItemRepositoryFactory {

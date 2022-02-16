@@ -30,6 +30,10 @@ extension DatabaseRepository {
         return model.delete(on: self.db)
     }
 
+    func delete<M: Model>(_ models: [M]) -> EventLoopFuture<Void> {
+        return models.delete(on: self.db)
+    }
+
     func delete<M: Model>(modelType: M.Type, id: M.IDValue) -> EventLoopFuture<Void> {
         return modelType.query(on: self.db)
             .filter(.id, .equal, id)

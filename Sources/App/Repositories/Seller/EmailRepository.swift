@@ -26,6 +26,7 @@ protocol EmailRepository {
     func sendItemAvailableEmail(for item: Item) throws -> EventLoopFuture<Void>
     func sendOrderUpdateEmail(for order: Order) throws -> EventLoopFuture<Void>
     func sendTrackedItemUpdateEmail(for item: TrackedItem) throws -> EventLoopFuture<Void>
+    func sendTrackedItemsUpdateEmail(for items: [TrackedItem]) throws -> EventLoopFuture<Void>
     func sendResetPasswordEmail(for buyer: Buyer,
                                 resetPasswordToken: BuyerResetPasswordToken) throws -> EventLoopFuture<Void>
 }
@@ -33,7 +34,41 @@ protocol EmailRepository {
 struct SendGridEmailRepository: EmailRepository {
     let appFrontendURL: String
     let request: Request
+
+    func sendTrackedItemsUpdateEmail(for items: [TrackedItem]) throws -> EventLoopFuture<Void> {
+        let itemIDs = try items.map { try $0.requireID() }
+        return request
+            .buyerTrackedItems
+            .find(filter: .init(trackedItemIDs: itemIDs))
+            .tryFlatMap { buyerItems in
+                let groupedBuyerItems = Dictionary.init(grouping: buyerItems, by: \.$buyer.id)
+
+                return try groupedBuyerItems.keys.map { buyerID in
+                    let items = groupedBuyerItems[buyerID] ?? []
+                    
+                    guard let buyerItem = items.first else {
+                        return request.eventLoop.future()
+                    }
+                    
+                    let email = buyerItem.buyer.email
+                    
+                    func message(for item: BuyerTrackedItem) -> String {
+                        if !item.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            return "- \(item.note) (Mã tracking: \(item.trackedItem.trackingNumber)) đã được xác nhận về tới kho."
+                        } else {
+                            return "- Mặt hàng với mã tracking: \(item.trackedItem.trackingNumber) đã được xác nhận về tới kho."
+                        }
+                    }
     
+                    let messages = items.map { item in
+                        message(for: item)
+                    }.joined(separator: "<br/>")
+
+                    return try self.sendEmail(to: email, title: "🎉🥳 Hàng đã về tới kho!", content: messages)
+                }.flatten(on: self.request.eventLoop)
+            }
+    }
+
     func sendTrackedItemUpdateEmail(for item: TrackedItem) throws -> EventLoopFuture<Void> {
         return try request
             .buyerTrackedItems

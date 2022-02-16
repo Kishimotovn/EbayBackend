@@ -19,6 +19,7 @@ struct TrackedItemFilter {
     var limit: Int? = nil
     var buyerID: Buyer.IDValue? = nil
     var states: [TrackedItem.State]? = nil
+    var date: Date? = nil
 }
 
 protocol TrackedItemRepository {
@@ -78,6 +79,9 @@ struct DatabaseTrackedItemRepository: TrackedItemRepository, DatabaseRepository 
         }
         if let states = filter.states, !states.isEmpty {
             query.filter(\.$state ~~ states)
+        }
+        if let date = filter.date {
+            query.filter(.sql(raw: "\(TrackedItem.schema).created_at::DATE"), .equal, .bind(date))
         }
     }
 }

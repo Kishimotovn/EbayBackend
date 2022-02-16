@@ -93,8 +93,11 @@ struct BuyerTrackedItemController: RouteCollection {
         let buyer = try request.auth.require(Buyer.self)
         let buyerID = try buyer.requireID()
         let pageRequest = try request.query.decode(PageRequest.self)
-
-        return request.buyerTrackedItems.paginated(filter: .init(buyerID: buyerID), pageRequest: pageRequest)
+        struct QueryBody: Content {
+            var state: TrackedItem.State?
+        }
+        let input = try request.query.decode(QueryBody.self)
+        return request.buyerTrackedItems.paginated(filter: .init(buyerID: buyerID, states: [input.state].compactMap { $0} ), pageRequest: pageRequest)
     }
 
     private func getPaginatedRegisteredHandler(request: Request) throws -> EventLoopFuture<Page<BuyerTrackedItem>> {
