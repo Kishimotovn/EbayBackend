@@ -100,10 +100,12 @@ struct UpdateSellerJob: ScheduledJob {
                         .and(saleCheckFuture)
                 }
                 .tryFlatMap { arg0, discounts in
+                    context.application.logger.info("1.")
                     let hasDiscounts = discounts.filter { $0.0 }.isEmpty == false
                     let titleAppend = hasDiscounts ? "⚠️" : ""
                     let (response, shouldNotify, changes) = arg0
                     if shouldNotify {
+                        context.application.logger.info("2.")
                         var emails: [EventLoopFuture<Void>] = []
                         let listOfEmails = context.application.notificationEmails.map { EmailAddress(email: $0) }
 
@@ -228,6 +230,7 @@ struct UpdateSellerJob: ScheduledJob {
                                   ["type": "text/html",
                                    "value": emailContent]
                                 ])
+                            context.application.logger.info("3. \(emailTitle)")
                             try emails.append(
                                 context
                                     .application
