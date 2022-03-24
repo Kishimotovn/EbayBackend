@@ -281,6 +281,10 @@ struct UpdateSellerJob: ScheduledJob {
                 return nil
             }
             return repo.checkFurtherDiscountFromWebPage(urlString: itemURL)
+                .flatMapErrorThrowing { error in
+                    repo.application.logger.error("Failed to get further discount \(item.safeTitle) - \(itemURL)")
+                    return false
+                }
                 .and(value: itemID)
         }.flatten(on: eventLoop)
     }
