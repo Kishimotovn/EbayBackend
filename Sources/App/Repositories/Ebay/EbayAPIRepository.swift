@@ -92,8 +92,9 @@ class ClientEbayAPIRepository: EbayAPIRepository {
             
             let itemIDs = summaries.map{ $0.itemId }
             return self.appMetaDatas.incrementScanCount().flatMap {
-                return itemIDs.map {
-                    return self.getItemDetails(ebayItemID: $0)
+                return itemIDs.compactMap { itemID in
+                    guard let id = itemID else { return nil }
+                    return self.getItemDetails(ebayItemID: id)
                 }.flatten(on: self.client.eventLoop)
             }.map { items in
                 return EbayAPIItemListOutput(
@@ -170,7 +171,7 @@ class ClientEbayAPIRepository: EbayAPIRepository {
                     return EbayAPIItemOutput(
                         itemID: item.itemId,
                         name: item.title,
-                        imageURL: item.image.imageUrl ?? "",
+                        imageURL: item.image?.imageUrl ?? "",
                         itemURL: item.itemWebUrl,
                         condition: item.condition,
                         shippingPrice: normalizedShippingPrice,
@@ -472,15 +473,28 @@ extension EbayItemSearchResponse: Equatable {
 }
 
 struct EbayItemSummaryResponse: Content {
-    var itemId: String
-    var title: String
-    var image: EbayGetItemResponse.Image
+    var itemId: String?
+    var title: String?
+    var image: EbayGetItemResponse.Image?
     var condition: String?
-    var itemWebUrl: String
-    var price: EbayGetItemResponse.ConvertedAmount
-    var seller: EbayGetItemResponse.SellerDetail
+    var itemWebUrl: String?
+    var price: EbayGetItemResponse.ConvertedAmount?
+    var seller: EbayGetItemResponse.SellerDetail?
     var shippingOptions: [EbayGetItemResponse.ShippingOption]?
     var marketingPrice: EbayGetItemResponse.MarketingPrice?
+    
+
+    var safeItemId: String {
+        return self.itemId ?? UUID().uuidString
+    }
+
+    var safeTitle: String {
+        return self.title ?? "N/A"
+    }
+
+    var safeWebURL: String {
+        return self.safeWebURL ?? "N/A URL"
+    }
 }
 
 import DeepDiff
@@ -489,7 +503,7 @@ extension EbayItemSummaryResponse: DiffAware {
     typealias DiffId = String
 
     var diffId: String {
-        return self.itemId
+        return self.itemId ?? UUID().uuidString
     }
 
     static func compareContent(_ a: EbayItemSummaryResponse, _ b: EbayItemSummaryResponse) -> Bool {
@@ -562,7 +576,7 @@ struct EbayGetItemResponse: Content {
     var estimatedAvailabilities: [EstimatedAvailability]?
     var gender: String?
     var gtin: String?
-    var image: Image
+    var image: Image?
     var inferredEpid: String?
     var itemEndDate: String?
     var itemId: String

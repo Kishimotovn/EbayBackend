@@ -12,6 +12,17 @@ import Queues
 import SendGrid
 import DeepDiff
 
+struct UpdateSellerBatchCount: StorageKey {
+    typealias Value = Int
+}
+
+extension Application {
+    var updateSellerBatchCount: Int {
+        get { self.storage[UpdateSellerBatchCount.self] ?? 2 }
+        set { self.storage[UpdateSellerBatchCount.self] = newValue }
+    }
+}
+
 struct UpdateSellerJob: ScheduledJob {
     func run(context: QueueContext) -> EventLoopFuture<Void> {
         return SellerSellerSubscription.query(on: context.application.db)
@@ -37,12 +48,13 @@ struct UpdateSellerJob: ScheduledJob {
                     ebayAppSecret: context.application.ebayAppSecret ?? "")
 
                 return self.runByChunk(subscriptions: validSubscriptions,
+                                       chunk: context.application.updateSellerBatchCount,
                                        clientEbayRepository: clientEbayRepository,
                                        context: context)
             }
     }
     
-    private func runByChunk(subscriptions: [SellerSellerSubscription], chunk: Int = 5, clientEbayRepository: ClientEbayAPIRepository, context: QueueContext) -> EventLoopFuture<Void> {
+    private func runByChunk(subscriptions: [SellerSellerSubscription], chunk: Int, clientEbayRepository: ClientEbayAPIRepository, context: QueueContext) -> EventLoopFuture<Void> {
         let batchSubcription = subscriptions.prefix(chunk)
         context.application.logger.info("Running batch with count: \(batchSubcription.count)")
 
@@ -116,15 +128,15 @@ struct UpdateSellerJob: ScheduledJob {
                             \(contentPrefix) - [\(insertChanges.count)]<br/>
                             \(insertChanges.map {
                                 """
-                                - \(self.hasFurtherDiscount(itemID: $0.item.itemId, discounts: discounts) ? "[⚠️ Có giảm thêm]" : "") <a href="\($0.item.itemWebUrl)">\($0.item.title)</a> - \($0.item.price.value ?? "N/A")
+                                - \(self.hasFurtherDiscount(itemID: $0.item.safeItemId, discounts: discounts) ? "[⚠️ Có giảm thêm]" : "") <a href="\($0.item.safeWebURL)">\($0.item.safeTitle)</a> - \($0.item.price?.value ?? "N/A")
                                 """
                             }.joined(separator: "<br/>"))
                                 <br/><br/><br/>
                                 List:<br/>
                                 \((response.itemSummaries ?? []).sorted { lhs, rhs in
-                                    return lhs.title < rhs.title
+                                    return lhs.safeTitle < rhs.safeTitle
                                 }.map { """
-                                - \(self.hasFurtherDiscount(itemID: $0.itemId, discounts: discounts) ? "[⚠️ Có giảm thêm]" : "") <a href="\($0.itemWebUrl)">\($0.title)</a> - \($0.price.value ?? "N/A")
+                                - \(self.hasFurtherDiscount(itemID: $0.safeItemId, discounts: discounts) ? "[⚠️ Có giảm thêm]" : "") <a href="\($0.safeWebURL)">\($0.safeTitle)</a> - \($0.price?.value ?? "N/A")
                                 """ }.joined(separator: "<br/>"))
                             """
                             let emailConfig = Personalization(
@@ -152,11 +164,11 @@ struct UpdateSellerJob: ScheduledJob {
                         if (!changesThatArePriceChanges.isEmpty) {
                             let emailTitle: String = "\(titleAppend) ⚠️ Thay đổi giá!"
                             let priceChangesContent = changesThatArePriceChanges.map { change -> (Bool, Replace<EbayItemSummaryResponse>) in
-                                let increasing = (Double(change.newItem.price.value ?? "") ?? 0) - (Double(change.oldItem.price.value ?? "") ?? 0) > 0
+                                let increasing = (Double(change.newItem.price?.value ?? "") ?? 0) - (Double(change.oldItem.price?.value ?? "") ?? 0) > 0
                                 return (increasing, change)
                             }.map { increasing, change -> String in
                                 """
-                                -  \(increasing ? "🔺" : "🔻") \(self.hasFurtherDiscount(itemID: change.newItem.itemId, discounts: discounts) ? "[⚠️ Có giảm thêm]" : "") <a href="\(change.newItem.itemWebUrl)">\(change.oldItem.title) -> \(change.newItem.title)</a>, \(change.oldItem.price.value ?? "N/A") -> \(change.newItem.price.value ?? "N/A")
+                                -  \(increasing ? "🔺" : "🔻") \(self.hasFurtherDiscount(itemID: change.newItem.safeItemId, discounts: discounts) ? "[⚠️ Có giảm thêm]" : "") <a href="\(change.newItem.safeWebURL)">\(change.oldItem.safeTitle) -> \(change.newItem.safeTitle)</a>, \(change.oldItem.price?.value ?? "N/A") -> \(change.newItem.price?.value ?? "N/A")
                                 """
                             }.joined(separator: "<br/>")
                             let emailContent: String = """
@@ -164,9 +176,9 @@ struct UpdateSellerJob: ScheduledJob {
                             \(priceChangesContent)<br/><br/><br/>
                             List:<br/>
                             \((response.itemSummaries ?? []).sorted { lhs, rhs in
-                                return lhs.title < rhs.title
+                                return lhs.safeTitle < rhs.safeTitle
                             }.map { """
-                            - \(self.hasFurtherDiscount(itemID: $0.itemId, discounts: discounts) ? "[⚠️ Có giảm thêm]" : "") <a href="\($0.itemWebUrl)">\($0.title)</a> - \($0.price.value ?? "N/A")
+                            - \(self.hasFurtherDiscount(itemID: $0.safeItemId, discounts: discounts) ? "[⚠️ Có giảm thêm]" : "") <a href="\($0.safeWebURL)">\($0.safeTitle)</a> - \($0.price?.value ?? "N/A")
                             """ }.joined(separator: "<br/>"))
                             """
                             let emailConfig = Personalization(
@@ -195,14 +207,14 @@ struct UpdateSellerJob: ScheduledJob {
                             \(contentPrefix) - [\(deleteChanges.count)]<br/>
                             \(deleteChanges.map {
                                 """
-                                -  \(self.hasFurtherDiscount(itemID: $0.item.itemId, discounts: discounts) ? "[⚠️ Có giảm thêm]" : "") <a href="\($0.item.itemWebUrl)">\($0.item.title)</a> - \($0.item.price.value ?? "N/A")
+                                -  \(self.hasFurtherDiscount(itemID: $0.item.safeItemId, discounts: discounts) ? "[⚠️ Có giảm thêm]" : "") <a href="\($0.item.safeWebURL)">\($0.item.safeTitle)</a> - \($0.item.price?.value ?? "N/A")
                                 """ }.joined(separator: "<br/>"))
                                 <br/><br/><br/>
                                 List:<br/>
                                 \((response.itemSummaries ?? []).sorted { lhs, rhs in
-                                    return lhs.title < rhs.title
+                                    return lhs.safeTitle < rhs.safeTitle
                                 }.map { """
-                                - \(self.hasFurtherDiscount(itemID: $0.itemId, discounts: discounts) ? "[⚠️ Có giảm thêm]" : "") <a href="\($0.itemWebUrl)">\($0.title)</a> - \($0.price.value ?? "N/A")
+                                - \(self.hasFurtherDiscount(itemID: $0.safeItemId, discounts: discounts) ? "[⚠️ Có giảm thêm]" : "") <a href="\($0.safeWebURL)">\($0.safeTitle)</a> - \($0.price?.value ?? "N/A")
                                 """ }.joined(separator: "<br/>"))
                             """
                             let emailConfig = Personalization(
@@ -261,9 +273,12 @@ struct UpdateSellerJob: ScheduledJob {
         for items: [EbayItemSummaryResponse],
         using repo: ClientEbayAPIRepository,
         on eventLoop: EventLoop) -> EventLoopFuture<[(Bool, String)]> {
-        return items.map { item in
-            return repo.checkFurtherDiscountFromWebPage(urlString: item.itemWebUrl)
-                .and(value: item.itemId)
+        return items.compactMap { item in
+            guard let itemURL = item.itemWebUrl, let itemID = item.itemId else {
+                return nil
+            }
+            return repo.checkFurtherDiscountFromWebPage(urlString: itemURL)
+                .and(value: itemID)
         }.flatten(on: eventLoop)
     }
 }

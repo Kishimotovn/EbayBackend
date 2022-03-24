@@ -53,7 +53,10 @@ struct UpdateQuantityJob: ScheduledJob {
                                 ebayAppID: context.application.ebayAppID ?? "",
                                 ebayAppSecret: context.application.ebayAppSecret ?? "")
                             let itemRepository = DatabaseItemRepository(db: context.application.db)
-                            return self.runByChunk(items: validItems, clientEbayRepository: clientEbayRepository, itemRepository: itemRepository, subscriptions: subscriptions, context: context)
+                            return self.runByChunk(
+                                items: validItems,
+                                chunk: context.application.updateSellerBatchCount,
+                                clientEbayRepository: clientEbayRepository, itemRepository: itemRepository, subscriptions: subscriptions, context: context)
                     }.flatMap {
                         if !validItems.isEmpty {
                             jobMonitoring.finishedAt = Date()
@@ -66,7 +69,7 @@ struct UpdateQuantityJob: ScheduledJob {
             }
     }
 
-    private func runByChunk(items: [Item], chunk: Int = 5, clientEbayRepository: ClientEbayAPIRepository, itemRepository: DatabaseItemRepository, subscriptions: [SellerItemSubscription], context: QueueContext) -> EventLoopFuture<Void> {
+    private func runByChunk(items: [Item], chunk: Int, clientEbayRepository: ClientEbayAPIRepository, itemRepository: DatabaseItemRepository, subscriptions: [SellerItemSubscription], context: QueueContext) -> EventLoopFuture<Void> {
         let batchItems = items.prefix(chunk)
         let batch = batchItems.map { (item: Item) in
             return clientEbayRepository.getItemDetails(ebayItemID: item.itemID)
