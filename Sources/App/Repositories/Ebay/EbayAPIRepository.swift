@@ -493,7 +493,7 @@ struct EbayItemSummaryResponse: Content {
     }
 
     var safeWebURL: String {
-        return self.safeWebURL ?? "N/A URL"
+        return self.itemWebUrl ?? "N/A URL"
     }
 }
 
