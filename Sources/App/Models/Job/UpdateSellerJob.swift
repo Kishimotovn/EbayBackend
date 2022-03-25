@@ -125,6 +125,7 @@ struct UpdateSellerJob: ScheduledJob {
                         let insertChanges = changes.compactMap{ $0.insert }
                         context.application.logger.info("3. \(insertChanges.count)")
                         if (!insertChanges.isEmpty) {
+                            context.application.logger.info("3.1")
                             let emailTitle: String = "✅ Seller thêm hàng!"
                             let emailContent: String = """
                             \(contentPrefix) - [\(insertChanges.count)]<br/>
@@ -134,6 +135,7 @@ struct UpdateSellerJob: ScheduledJob {
                                 """
                             }.joined(separator: "<br/>"))
                             """
+                            context.application.logger.info("3.2")
                             let emailConfig = Personalization(
                                 to: listOfEmails,
                                 subject: emailTitle)
@@ -145,14 +147,17 @@ struct UpdateSellerJob: ScheduledJob {
                                   ["type": "text/html",
                                    "value": emailContent]
                                 ])
+                            context.application.logger.info("3.3")
                             try emails.append(context
                                             .application
                                             .sendgrid
                                             .client
                                             .send(email: email,
                                                   on: context.eventLoop))
+                            context.application.logger.info("3.4")
                         }
                         
+                        context.application.logger.info("3.5")
                         let changesThatArePriceChanges = changes.compactMap { $0.replace }.filter {
                             return $0.oldItem.price != $0.newItem.price || $0.oldItem.marketingPrice != $0.newItem.marketingPrice
                         }
