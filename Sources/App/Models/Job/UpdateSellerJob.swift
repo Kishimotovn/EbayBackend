@@ -124,6 +124,7 @@ struct UpdateSellerJob: ScheduledJob {
                         }
                         
                         let insertChanges = changes.compactMap{ $0.insert }
+                        context.application.logger.info("3. \(insertChanges.count)")
                         if (!insertChanges.isEmpty) {
                             let emailTitle: String = "\(titleAppend) ✅ Seller thêm hàng!"
                             let emailContent: String = """
@@ -163,6 +164,7 @@ struct UpdateSellerJob: ScheduledJob {
                         let changesThatArePriceChanges = changes.compactMap { $0.replace }.filter {
                             return $0.oldItem.price != $0.newItem.price || $0.oldItem.marketingPrice != $0.newItem.marketingPrice
                         }
+                        context.application.logger.info("4. \(changesThatArePriceChanges.count)")
                         if (!changesThatArePriceChanges.isEmpty) {
                             let emailTitle: String = "\(titleAppend) ⚠️ Thay đổi giá!"
                             let priceChangesContent = changesThatArePriceChanges.map { change -> (Bool, Replace<EbayItemSummaryResponse>) in
@@ -203,6 +205,7 @@ struct UpdateSellerJob: ScheduledJob {
                         }
                         
                         let deleteChanges = changes.compactMap{ $0.delete }
+                        context.application.logger.info("5. \(deleteChanges)")
                         if !deleteChanges.isEmpty {
                             let emailTitle: String = "\(titleAppend) 💥 Seller hết hàng!"
                             let emailContent: String = """
@@ -230,7 +233,6 @@ struct UpdateSellerJob: ScheduledJob {
                                   ["type": "text/html",
                                    "value": emailContent]
                                 ])
-                            context.application.logger.info("3. \(emailTitle)")
                             try emails.append(
                                 context
                                     .application
