@@ -206,7 +206,8 @@ struct UpdateSellerJob: ScheduledJob {
                         
                         let deleteChanges = changes.compactMap{ $0.delete }
                         context.application.logger.info("5. \(deleteChanges.count)")
-                        if !deleteChanges.isEmpty {
+                        let mightJustBeReorderChange = deleteChanges.count == insertChanges.count
+                        if !deleteChanges.isEmpty && !mightJustBeReorderChange {
                             let emailTitle: String = "\(titleAppend) 💥 Seller hết hàng!"
                             let emailContent: String = """
                             \(contentPrefix) - [\(deleteChanges.count)]<br/>
