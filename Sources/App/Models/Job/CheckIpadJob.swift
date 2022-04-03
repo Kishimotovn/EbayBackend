@@ -100,7 +100,7 @@ struct CheckIpadJob: ScheduledJob {
                 }
                 return products
             }.tryFlatMap { products in
-                return try context.application.redis.get("ipad_products", asJSON: [Product].self)
+                return context.application.redis.get("ipad_products", asJSON: [Product].self)
                     .unwrap(orElse: { [Product]() })
                     .and(value: products.sorted { lhs, rhs in
                         return (lhs.name ?? "") < (rhs.name ?? "")
@@ -123,7 +123,7 @@ struct CheckIpadJob: ScheduledJob {
                 context.application.logger.info("===========================================")
 
                 guard shouldNotify else {
-                    return context.eventLoop.future(())
+                    return context.application.redis.set("ipad_products", toJSON: newItems)
                 }
                 
                 var emails: [EventLoopFuture<Void>] = []
@@ -202,6 +202,9 @@ struct CheckIpadJob: ScheduledJob {
                 context.application.logger.info("sending \(emails.count) emails to \(context.application.notificationEmails)")
                 return emails
                     .flatten(on: context.eventLoop)
+                    .flatMap {
+                        return context.application.redis.set("ipad_products", toJSON: newItems)
+                    }
             }.flatMapErrorThrowing { error in
                 context.application.logger.error("Failed seller scan for IPAD with error \(error)")
                 return
