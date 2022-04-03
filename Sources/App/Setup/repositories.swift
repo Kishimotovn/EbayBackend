@@ -90,6 +90,7 @@ public func setupRepositories(app: Application) throws {
     app.scanInterval = Int(Environment.process.SCAN_INTERVAL ?? "") ?? 5
     app.notificationEmails = (Environment.process.NOTIFICATION_EMAILS ?? "minhdung910@gmail.com,chonusebay@gmail.com").components(separatedBy: ",")
     app.updateSellerBatchCount = Int(Environment.process.UPDATE_SELLER_BATCH_COUNT ?? "") ?? 2
+    app.ipadScanInterval = Int(Environment.process.IPAD_SCAN_INTERVAL ?? "") ?? 5
 
     if (Environment.process.SENDGRID_API_KEY != nil) {
         app.sendgrid.initialize()

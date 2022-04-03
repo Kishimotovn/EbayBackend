@@ -1,13 +1,14 @@
 import Fluent
 import Vapor
+import SwiftSoup
 
 func routes(_ app: Application) throws {
     app.get { req in
         return "It works!"
     }
 
-    app.get("hello") { req -> String in
-        return "Hello, world!"
+    app.get("hello") { req -> EventLoopFuture<String> in
+        return req.eventLoop.future("Hello")
     }
 
     let apiRoutes = app.grouped("api")

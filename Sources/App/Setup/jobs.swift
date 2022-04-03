@@ -26,6 +26,9 @@ public func jobs(app: Application) throws {
         .schedule(UpdateSellerJob())
         .minutely()
         .at(0)
+    app.queues
+        .schedule(CheckIpadJob())
+        .minutely()
     try app.queues
         .startInProcessJobs(on: .default)
 }
