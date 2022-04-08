@@ -100,12 +100,10 @@ struct UpdateSellerJob: ScheduledJob {
                         .and(saleCheckFuture)
                 }
                 .tryFlatMap { arg0, discounts in
-                    context.application.logger.info("1.")
                     let hasDiscounts = discounts.filter { $0.0 }.isEmpty == false
                     let titleAppend = hasDiscounts ? "⚠️" : ""
                     let (response, shouldNotify, changes) = arg0
                     if shouldNotify {
-                        context.application.logger.info("2.")
                         var emails: [EventLoopFuture<Void>] = []
                         let listOfEmails = context.application.notificationEmails.map { EmailAddress(email: $0) }
 
@@ -124,8 +122,9 @@ struct UpdateSellerJob: ScheduledJob {
                         }
                         
                         let insertChanges = changes.compactMap{ $0.insert }
-                        context.application.logger.info("3. \(insertChanges.count)")
-                        if (!insertChanges.isEmpty) {
+                        let deleteChanges = changes.compactMap{ $0.delete }
+                        let mightJustBeReorderChange = deleteChanges.count == insertChanges.count
+                        if !insertChanges.isEmpty && !mightJustBeReorderChange {
                             let emailTitle: String = "\(titleAppend) ✅ Seller thêm hàng!"
                             let emailContent: String = """
                             \(contentPrefix) - [\(insertChanges.count)]<br/>
@@ -164,7 +163,6 @@ struct UpdateSellerJob: ScheduledJob {
                         let changesThatArePriceChanges = changes.compactMap { $0.replace }.filter {
                             return $0.oldItem.price != $0.newItem.price || $0.oldItem.marketingPrice != $0.newItem.marketingPrice
                         }
-                        context.application.logger.info("4. \(changesThatArePriceChanges.count)")
                         if (!changesThatArePriceChanges.isEmpty) {
                             let emailTitle: String = "\(titleAppend) ⚠️ Thay đổi giá!"
                             let priceChangesContent = changesThatArePriceChanges.map { change -> (Bool, Replace<EbayItemSummaryResponse>) in
@@ -204,9 +202,6 @@ struct UpdateSellerJob: ScheduledJob {
                                                   on: context.eventLoop))
                         }
                         
-                        let deleteChanges = changes.compactMap{ $0.delete }
-                        context.application.logger.info("5. \(deleteChanges.count)")
-                        let mightJustBeReorderChange = deleteChanges.count == insertChanges.count
                         if !deleteChanges.isEmpty && !mightJustBeReorderChange {
                             let emailTitle: String = "\(titleAppend) 💥 Seller hết hàng!"
                             let emailContent: String = """

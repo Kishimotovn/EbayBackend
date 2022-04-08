@@ -8,7 +8,10 @@ func routes(_ app: Application) throws {
     }
 
     app.get("hello") { req -> EventLoopFuture<String> in
-        return req.eventLoop.future("Hello")
+        return req.ebayAPIs.checkFurtherDiscountFromWebPage(urlString: "https://www.ebay.com/itm/224730172617?hash=item3452f64cc9:g:qfYAAOSwnbZf3Pgv")
+            .map { _ in
+                return "Done"
+            }
     }
 
     let apiRoutes = app.grouped("api")
