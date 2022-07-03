@@ -222,7 +222,7 @@ struct SellerTrackedItemController: RouteCollection {
             try await request.trackedItems.save(existingTrackedItem).get()
             return (existingTrackedItem, trackedItemStateChanged)
         } else {
-            let newTrail = TrackedItem.StateTrail(state: state)
+            let newTrail = TrackedItem.StateTrail(state: state, updatedAt: date)
             let trackedItem = TrackedItem(
                 sellerID: sellerID,
                 trackingNumber: trackingNumber,
