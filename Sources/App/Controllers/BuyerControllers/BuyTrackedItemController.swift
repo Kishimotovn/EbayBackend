@@ -22,9 +22,6 @@ struct BuyerTrackedItemController: RouteCollection {
             .grouped(BuyerJWTAuthenticator())
             .grouped(Buyer.guardMiddleware())
 
-        buyerProtectedRoutes.get(use: getPaginatedHandler)
-        buyerProtectedRoutes.get("registered", use: getPaginatedRegisteredHandler)
-        buyerProtectedRoutes.get("received", use: getPaginatedReceivedHandler)
         buyerProtectedRoutes.post("register", use: registerMultipleItemHandler)
         buyerProtectedRoutes.post(TrackedItem.parameterPath, "register", use: registerBuyerTrackedItemHandler)
         buyerProtectedRoutes.patch(BuyerTrackedItem.parameterPath, use: updateBuyerTrackedItemHandler)
@@ -77,9 +74,9 @@ struct BuyerTrackedItemController: RouteCollection {
                 let notFoundItems = input.validTrackingNumbers().filter { trackingNumber in
                     !foundTrackingNumbers.contains(where: { $0.hasSuffix(trackingNumber) })
                 }.map { trackingNumber in
-                    return TrackedItem.init(sellerID: masterSellerID, trackingNumber: trackingNumber, state: .registered, sellerNote: "")
+                    return TrackedItem.init(sellerID: masterSellerID, trackingNumber: trackingNumber, stateTrails: [], sellerNote: "")
                 }
-                
+
                 return request.trackedItems.create(notFoundItems)
                     .transform(to: (notFoundItems, foundTrackedItems))
             }.map { notFoundItems, foundTrackedItems in
@@ -87,40 +84,6 @@ struct BuyerTrackedItemController: RouteCollection {
                 items.append(contentsOf: foundTrackedItems)
                 return items
             }
-    }
-
-    private func getPaginatedHandler(request: Request) throws -> EventLoopFuture<Page<BuyerTrackedItem>> {
-        let buyer = try request.auth.require(Buyer.self)
-        let buyerID = try buyer.requireID()
-        let pageRequest = try request.query.decode(PageRequest.self)
-        struct QueryBody: Content {
-            var state: TrackedItem.State?
-        }
-        let input = try request.query.decode(QueryBody.self)
-        return request.buyerTrackedItems.paginated(filter: .init(buyerID: buyerID, states: [input.state].compactMap { $0} ), pageRequest: pageRequest)
-    }
-
-    private func getPaginatedRegisteredHandler(request: Request) throws -> EventLoopFuture<Page<BuyerTrackedItem>> {
-        let buyer = try request.auth.require(Buyer.self)
-        let buyerID = try buyer.requireID()
-        let pageRequest = try request.query.decode(PageRequest.self)
-        
-        if pageRequest.per <= 0 {
-            return request.buyerTrackedItems.find(filter: .init(buyerID: buyerID, states: [.registered]))
-                .map { items in
-                    return Page(items: items, metadata: .init(page: 1, per: -1, total: items.count))
-                }
-        } else {
-            return request.buyerTrackedItems.paginated(filter: .init(buyerID: buyerID, states: [.registered]), pageRequest: pageRequest)
-        }
-    }
-
-    private func getPaginatedReceivedHandler(request: Request) throws -> EventLoopFuture<Page<BuyerTrackedItem>> {
-        let buyer = try request.auth.require(Buyer.self)
-        let buyerID = try buyer.requireID()
-        let pageRequest = try request.query.decode(PageRequest.self)
-
-        return request.buyerTrackedItems.paginated(filter: .init(buyerID: buyerID, states: [.receivedAtWarehouse]), pageRequest: pageRequest)
     }
 
     private func registerBuyerTrackedItemHandler(request: Request) throws -> EventLoopFuture<BuyerTrackedItem> {

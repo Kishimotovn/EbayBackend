@@ -8,6 +8,7 @@
 import Foundation
 import Vapor
 import Fluent
+import SwiftCSV
 
 struct SellerTrackedItemController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
@@ -20,6 +21,67 @@ struct SellerTrackedItemController: RouteCollection {
         groupedRoutes.post("multiple", use: createMultipleHandler)
         groupedRoutes.delete(TrackedItem.parameterPath, use: deleteHandler)
         groupedRoutes.delete("clearDay", use: clearDayHandler)
+        groupedRoutes.on(.POST, "uploadByState", ":state", body: .collect(maxSize: "50mb"), use: uploadByStateHandler)
+    }
+
+    struct UploadTrackedItemsByDayOutput: Content {
+        var totalCount: Int
+        var countByDate: [String: Int]
+    }
+
+    private func uploadByStateHandler(request: Request) async throws -> UploadTrackedItemsByDayOutput {
+        guard
+            let masterSellerID = request.application.masterSellerID,
+            let buffer = request.body.data,
+            let stateRaw = request.parameters.get("state", as: String.self),
+            let state = TrackedItem.State(rawValue: stateRaw)
+        else {
+            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
+        }
+
+        let dataString = String.init(buffer: buffer)
+        let csv = try NamedCSV(string: dataString)
+        
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "MM/dd/yyyy"
+
+        var countByDate: [String: Int] = [:]
+        var stateChangedItems = [TrackedItem]()
+        
+        try await csv.header.asyncForEach { header in
+            guard let date = dateFormatter.date(from: header) else {
+                return
+            }
+
+            let allTrackingNumbers = csv.columns?[header]?.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter {
+                $0.count > 8
+            }.removingDuplicates() ?? []
+
+            countByDate[header] = allTrackingNumbers.count
+            
+            try await allTrackingNumbers.asyncForEach { trackingNumber in
+                let (trackedItem, stateChanged) = try await self.createOrUpdate(
+                    sellerID: masterSellerID,
+                    trackingNumber,
+                    sellerNote: nil,
+                    state: state,
+                    date: date,
+                    on: request)
+                if (stateChanged) {
+                    stateChangedItems.append(trackedItem)
+                }
+            }
+        }
+        
+        if !stateChangedItems.isEmpty {
+            try await request.emails.sendTrackedItemsUpdateEmail(for: stateChangedItems).get()
+        }
+
+        let totalCount = countByDate.values.reduce(0, +)
+        return .init(
+            totalCount: totalCount,
+            countByDate: countByDate
+        )
     }
 
     private func clearDayHandler(request: Request) throws -> EventLoopFuture<HTTPResponseStatus> {
@@ -83,78 +145,93 @@ struct SellerTrackedItemController: RouteCollection {
             }.transform(to: .ok)
     }
 
-    private func createMultipleHandler(request: Request) throws -> EventLoopFuture<[TrackedItem]> {
+    private func createMultipleHandler(request: Request) async throws -> [TrackedItem] {
         guard let masterSellerID = request.application.masterSellerID else {
             throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
         }
 
         try CreateMultipleTrackedItemInput.validate(content: request)
         let input = try request.content.decode(CreateMultipleTrackedItemInput.self)
-
-        let mapFn = { trackingNumber throws -> EventLoopFuture<(TrackedItem, Bool)> in
-            return try self.createOrUpdate(sellerID: masterSellerID, trackingNumber, on: request)
+        
+        let results = try await input.trackingNumbers.asyncMap { trackingNumber in
+            return try await self.createOrUpdate(
+                sellerID: masterSellerID, trackingNumber,
+                sellerNote: input.sellerNote ?? "",
+                state: input.state,
+                date: Date(),
+                on: request)
         }
 
-        return try input.trackingNumbers.chunked(
-            10,
-            mapFn: mapFn,
-            on: request.eventLoop
-        ).tryFlatMap { results in
-            let allItems = results.map(\.0)
-            let stateChangedItems = results.filter {
-                return $0.1
-            }.map(\.0)
-            
-            guard !stateChangedItems.isEmpty else {
-                return request.eventLoop.future(allItems)
-            }
-
-            return try request.emails.sendTrackedItemsUpdateEmail(for: stateChangedItems)
-                .transform(to: allItems)
+        let allItems = results.map(\.0)
+        let stateChangedItems = results.filter {
+            return $0.1
+        }.map(\.0)
+        
+        if !stateChangedItems.isEmpty {
+            try await request.emails.sendTrackedItemsUpdateEmail(for: stateChangedItems).get()
         }
+
+        return allItems
     }
 
-    private func createHandler(request: Request) throws -> EventLoopFuture<TrackedItem> {
+    private func createHandler(request: Request) async throws -> TrackedItem {
         guard let masterSellerID = request.application.masterSellerID else {
             throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
         }
 
         try CreateTrackedItemInput.validate(content: request)
         let input = try request.content.decode(CreateTrackedItemInput.self)
-        return try self.createOrUpdate(sellerID: masterSellerID, input.trackingNumber, sellerNote: input.sellerNote, on: request)
-            .tryFlatMap { trackedItem, stateChanged in
-                if stateChanged {
-                    return try request.emails.sendTrackedItemUpdateEmail(for: trackedItem)
-                        .transform(to: trackedItem)
-                } else {
-                    return request.eventLoop.future(trackedItem)
-                }
-            }
+        let (trackedItem, stateChanged) = try await self.createOrUpdate(sellerID: masterSellerID, input.trackingNumber, sellerNote: input.sellerNote, state: input.state, date: Date(), on: request)
+
+        if stateChanged {
+            try await request.emails.sendTrackedItemUpdateEmail(for: trackedItem).get()
+        }
+        
+        return trackedItem
     }
 
-    private func createOrUpdate(sellerID: Seller.IDValue, _ trackingNumber: String, sellerNote: String? = nil, on request: Request) throws -> EventLoopFuture<(TrackedItem, Bool)> {
-        return request.trackedItems
-            .find(
-                filter: .init(
-                    sellerID: sellerID,
-                    trackingNumbers: [trackingNumber],
-                    limit: 1
-                )
-            ).first()
-            .flatMap { existingTrackedItem in
-                if let trackedItem = existingTrackedItem {
-                    let trackedItemStateChanged = trackedItem.state != .receivedAtWarehouse
-                    trackedItem.trackingNumber = trackingNumber
-                    trackedItem.state = .receivedAtWarehouse
-                    trackedItem.sellerNote = sellerNote ?? ""
-                    return request.trackedItems.save(trackedItem)
-                        .transform(to: (trackedItem, trackedItemStateChanged))
-                } else {
-                    let trackedItem = TrackedItem(sellerID: sellerID, trackingNumber: trackingNumber, state: .receivedAtWarehouse, sellerNote: sellerNote ?? "")
-                    return request.trackedItems.save(trackedItem)
-                        .transform(to: (trackedItem, false))
-                }
+    private func createOrUpdate(
+        sellerID: Seller.IDValue,
+        _ trackingNumber: String,
+        sellerNote: String? = nil,
+        state: TrackedItem.State,
+        date: Date,
+        on request: Request
+    ) async throws -> (TrackedItem, Bool) {
+        if let existingTrackedItem = try await request.trackedItems.find(
+            filter: .init(
+                sellerID: sellerID,
+                trackingNumbers: [trackingNumber],
+                limit: 1
+            )
+        ).first(
+        ).get() {
+            let trackedItemStateChanged = !existingTrackedItem.stateTrails.contains {
+                $0.state == state && $0.updatedAt == date
             }
+            existingTrackedItem.trackingNumber = trackingNumber
+
+            if trackedItemStateChanged {
+                let newTrail = TrackedItem.StateTrail.init(state: state, updatedAt: date)
+                existingTrackedItem.stateTrails.append(newTrail)
+            }
+
+            if let sellerNote = sellerNote {
+                existingTrackedItem.sellerNote = sellerNote
+            }
+            try await request.trackedItems.save(existingTrackedItem).get()
+            return (existingTrackedItem, trackedItemStateChanged)
+        } else {
+            let newTrail = TrackedItem.StateTrail(state: state)
+            let trackedItem = TrackedItem(
+                sellerID: sellerID,
+                trackingNumber: trackingNumber,
+                stateTrails: [newTrail],
+                sellerNote: sellerNote ?? "")
+
+            try await request.trackedItems.save(trackedItem).get()
+            return (trackedItem, false)
+        }
     }
 
     private func getPaginatedHandler(request: Request) throws -> EventLoopFuture<GetPaginatedOutput> {

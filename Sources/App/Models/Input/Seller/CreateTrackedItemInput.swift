@@ -10,14 +10,17 @@ import Vapor
 
 struct CreateTrackedItemInput: Content {
     var trackingNumber: String
+    var state: TrackedItem.State
     var sellerNote: String?
 }
 
 extension CreateTrackedItemInput {
     func trackedItem(by sellerID: Seller.IDValue) -> TrackedItem {
-        .init(sellerID: sellerID,
+        let trail = TrackedItem.StateTrail(state: self.state)
+
+        return .init(sellerID: sellerID,
               trackingNumber: self.trackingNumber,
-              state: .receivedAtWarehouse,
+              stateTrails: [trail],
               sellerNote: self.sellerNote ?? "")
     }
 }

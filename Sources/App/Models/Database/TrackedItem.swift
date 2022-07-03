@@ -1,5 +1,6 @@
 import Vapor
 import Fluent
+import Foundation
 
 final class TrackedItem: Model, Content {
     static var schema: String = "tracked_items"
@@ -22,13 +23,25 @@ final class TrackedItem: Model, Content {
     @Field(key: "seller_note")
     var sellerNote: String
 
-    enum State: String, Codable {
-        case registered
-        case receivedAtWarehouse
+    enum State: String, Codable, CaseIterable {
+        case receivedAtUSWarehouse
+        case flyingBack
+        case receivedAtVNWarehouse
+        case delivered
     }
 
-    @Field(key: "state")
-    var state: State
+    @Field(key: "state_trails")
+    var stateTrails: [StateTrail]
+
+    struct StateTrail: Content {
+        var state: State
+        @ISO8601DateTime var updatedAt: Date
+
+        init(state: State, updatedAt: Date = Date()) {
+            self.state = state
+            self._updatedAt = .init(date: updatedAt)
+        }
+    }
 
     @Children(for: \.$trackedItem)
     var buyerTrackedItems: [BuyerTrackedItem]
@@ -38,13 +51,21 @@ final class TrackedItem: Model, Content {
     init(
         sellerID: Seller.IDValue?,
         trackingNumber: String,
-        state: State,
+        stateTrails: [StateTrail],
         sellerNote: String
     ) {
         self.$seller.id = sellerID
         self.trackingNumber = trackingNumber
-        self.state = state
+        self.stateTrails = stateTrails
         self.sellerNote = sellerNote
+    }
+}
+
+extension TrackedItem {
+    var state: State? {
+        return self.stateTrails.sorted { lhs, rhs in
+            return lhs.updatedAt.compare(rhs.updatedAt) == .orderedDescending
+        }.first?.state
     }
 }
 

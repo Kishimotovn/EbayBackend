@@ -9,7 +9,7 @@ struct CreateTrackedItems: Migration {
             .field("seller_id", .uuid, .references(Seller.schema, "id"))
             .field("seller_note", .string, .required)
             .field("tracking_number", .string, .required)
-            .field("state", .string, .required)
+            .field("state_trails", .array(of: .json), .required)
             .field("created_at", .datetime)
             .field("updated_at", .datetime)
             .unique(on: "tracking_number", "seller_id")

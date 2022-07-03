@@ -10,15 +10,19 @@ import Vapor
 
 struct CreateMultipleTrackedItemInput: Content {
     var trackingNumbers: [String]
+    var state: TrackedItem.State
+    var sellerNote: String?
 }
 
 extension CreateMultipleTrackedItemInput {
     func trackedItem(by sellerID: Seller.IDValue) -> [TrackedItem] {
         return self.trackingNumbers.map {
-            .init(sellerID: sellerID,
+            let trail = TrackedItem.StateTrail(state: self.state)
+
+            return TrackedItem(sellerID: sellerID,
                   trackingNumber: $0,
-                  state: .receivedAtWarehouse,
-                  sellerNote: "")
+                  stateTrails: [trail],
+                  sellerNote: self.sellerNote ?? "")
         }
     }
 }

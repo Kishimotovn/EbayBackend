@@ -221,7 +221,7 @@ struct AuthController: RouteCollection {
     }
 
     private func registerBuyerHandler(request: Request) throws -> EventLoopFuture<HTTPResponseStatus> {
-        try CreateBuyerInput.validate(request)
+        try CreateBuyerInput.validate(content: request)
 
         let input = try request.content.decode(CreateBuyerInput.self)
         guard input.password == input.confirmPassword else {

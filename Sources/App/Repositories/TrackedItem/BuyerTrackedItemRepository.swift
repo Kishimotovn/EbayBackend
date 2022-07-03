@@ -13,7 +13,6 @@ struct BuyerTrackedItemFilter {
     var ids: [BuyerTrackedItem.IDValue]? = nil
     var buyerID: Buyer.IDValue? = nil
     var trackedItemIDs: [TrackedItem.IDValue]? = nil
-    var states: [TrackedItem.State]? = nil
     var limit: Int? = nil
 }
 
@@ -33,7 +32,6 @@ struct DatabaseBuyerTrackedItemRepository: BuyerTrackedItemRepository, DatabaseR
         _ = query
             .join(TrackedItemAlias.self, on: \TrackedItemAlias.$id == \BuyerTrackedItem.$trackedItem.$id)
             .sort(\.$createdAt, .descending)
-            .sort(TrackedItemAlias.self, \.$state, .descending)
             .sort(TrackedItemAlias.self, \.$updatedAt, .ascending)
         return query.all()
     }
@@ -45,7 +43,6 @@ struct DatabaseBuyerTrackedItemRepository: BuyerTrackedItemRepository, DatabaseR
         _ = query
             .join(TrackedItemAlias.self, on: \TrackedItemAlias.$id == \BuyerTrackedItem.$trackedItem.$id)
             .sort(\.$createdAt, .descending)
-            .sort(TrackedItemAlias.self, \.$state, .descending)
             .sort(TrackedItemAlias.self, \.$updatedAt, .ascending)
         return query.paginate(pageRequest)
     }
@@ -59,11 +56,6 @@ struct DatabaseBuyerTrackedItemRepository: BuyerTrackedItemRepository, DatabaseR
         }
         if let trackedItemIDs = filter.trackedItemIDs, !trackedItemIDs.isEmpty {
             query.filter(\.$trackedItem.$id ~~ trackedItemIDs)
-        }
-        if let states = filter.states, !states.isEmpty {
-            query
-                .join(TrackedItem.self, on: \TrackedItem.$id == \BuyerTrackedItem.$trackedItem.$id)
-                .filter(TrackedItem.self, \.$state ~~ states)
         }
         if let limit = filter.limit {
             query.limit(limit)
