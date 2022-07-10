@@ -22,37 +22,114 @@ struct BuyerTrackedItemController: RouteCollection {
             .grouped(BuyerJWTAuthenticator())
             .grouped(Buyer.guardMiddleware())
 
+        buyerProtectedRoutes.get("", use: getBuyerTrackedItemsHandler)
         buyerProtectedRoutes.post("register", use: registerMultipleItemHandler)
+        buyerProtectedRoutes.delete(use: deleteMultipleItemsHandler)
+        buyerProtectedRoutes.patch(use: updateMultipleItemsHandler)
         buyerProtectedRoutes.post(TrackedItem.parameterPath, "register", use: registerBuyerTrackedItemHandler)
         buyerProtectedRoutes.patch(BuyerTrackedItem.parameterPath, use: updateBuyerTrackedItemHandler)
     }
+    
+    private func updateMultipleItemsHandler(request: Request) async throws -> [BuyerTrackedItem] {
+        let buyer = try request.auth.require(Buyer.self)
+        let buyerID = try buyer.requireID()
 
-    private func registerMultipleItemHandler(request: Request) throws -> EventLoopFuture<[BuyerTrackedItem]> {
+        let input = try request.content.decode(UpdateMultipleTrackedItemsInput.self)
+
+        try await BuyerTrackedItem.query(on: request.db)
+            .filter(\.$id ~~ input.trackedItemIDs)
+            .filter(\.$buyer.$id == buyerID)
+            .set(\.$note, to: input.sharedNote)
+            .update()
+
+        return try await BuyerTrackedItem.query(on: request.db)
+            .filter(\.$id ~~ input.trackedItemIDs)
+            .filter(\.$buyer.$id == buyerID)
+            .with(\.$trackedItem)
+            .all()
+    }
+
+    private func deleteMultipleItemsHandler(request: Request) async throws -> HTTPResponseStatus {
+        let buyer = try request.auth.require(Buyer.self)
+        let buyerID = try buyer.requireID()
+
+        let input = try request.content.decode(DeleteMultipleTrackedItemsInput.self)
+
+        try await BuyerTrackedItem.query(on: request.db)
+            .filter(\.$id ~~ input.trackedItemIDs)
+            .filter(\.$buyer.$id == buyerID)
+            .delete()
+
+        return .ok
+    }
+
+    private func getBuyerTrackedItemsHandler(request: Request) async throws -> GetBuyerTrackedItemPageOutput {
+        let buyer = try request.auth.require(Buyer.self)
+        let buyerID = try buyer.requireID()
+        let input = try request.query.decode(GetBuyerTrackedItemInput.self)
+
+        let query = BuyerTrackedItem.query(on: request.db)
+            .filter(\.$buyer.$id == buyerID)
+            .join(parent: \.$trackedItem)
+            .with(\.$trackedItem)
+            .sort(\.$createdAt, .descending)
+
+        if let searchString = input.searchString {
+            query.filter(.sql(raw: "\(TrackedItem.schema).tracking_number"), .custom("ILIKE"), .bind("%\(searchString)"))
+        }
+        
+        
+        query.join(TrackedItemActiveState.self, on: \TrackedItemActiveState.$id == \TrackedItem.$id, method: .left)
+            .group(.or) { builder in
+                builder.filter(.sql(raw: "\(TrackedItemActiveState.schema).state IS NULL"))
+                if !input.filteredStates.isEmpty {
+                    builder.filter(TrackedItemActiveState.self, \.$state ~~ input.filteredStates)
+                }
+            }
+
+        let page = try await query
+            .paginate(for: request)
+
+        return .init(
+            items: page.items,
+            metadata: .init(
+                page: page.metadata.page,
+                per: page.metadata.per,
+                total: page.metadata.total,
+                pageCount: page.metadata.pageCount,
+                searchString: input.searchString,
+                filteredStates: input.filteredStates
+            )
+        )
+    }
+
+    private func registerMultipleItemHandler(request: Request) async throws -> [BuyerTrackedItem] {
         let buyer = try request.auth.require(Buyer.self)
         let buyerID = try buyer.requireID()
 
         let input = try request.content.decode(RegisterMultipleTrackedItemInput.self)
 
-        return request
+        let trackedItems = try await request
             .trackedItems
             .find(filter: .init(ids: input.trackedItemIDs))
-            .flatMap { trackedItems in
-                return request.db.transaction { db in
-                    return trackedItems.map { trackedItem in
-                        return buyer.$trackedItems.attachOverride(
-                            fromID: buyerID,
-                            trackedItem,
-                            method: .ifNotExists,
-                            on: db) { pivotItem in
-                                pivotItem.note = input.sharedNote ?? ""
-                            }
-                    }.flatten(on: db.eventLoop)
-                }.transform(to: trackedItems)
-            }.tryFlatMap { trackedItems in
-                let trackedItemIDs = trackedItems.compactMap(\.id)
-                return request.buyerTrackedItems
-                    .find(filter: .init(buyerID: buyerID, trackedItemIDs: trackedItemIDs))
+            .get()
+
+        try await request.db.transaction { db in
+            try await trackedItems.asyncForEach { trackedItem in
+                try await buyer.$trackedItems.attachOverride(
+                    fromID: buyerID,
+                    trackedItem,
+                    method: .ifNotExists,
+                    on: db) { pivotItem in
+                        pivotItem.note = input.sharedNote ?? ""
+                    }
             }
+        }
+
+        let trackedItemIDs = trackedItems.compactMap(\.id)
+        return try await request.buyerTrackedItems
+            .find(filter: .init(buyerID: buyerID, trackedItemIDs: trackedItemIDs))
+            .get()
     }
 
     private func searchForTrackingItemsHandler(request: Request) throws -> EventLoopFuture<[TrackedItem]> {
@@ -137,6 +214,16 @@ struct BuyerTrackedItemController: RouteCollection {
 }
 
 extension SiblingsProperty {
+    public func attachOverride(
+        fromID: From.IDValue,
+        _ to: To,
+        method: AttachMethod,
+        on database: Database,
+        override edit: @escaping (Through) -> () = { _ in }
+    ) async throws {
+        try await self.attachOverride(fromID: fromID, to, method: method, on: database, override: edit).get()
+    }
+
     public func attachOverride(
         fromID: From.IDValue,
         _ to: To,

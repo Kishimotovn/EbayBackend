@@ -16,7 +16,7 @@ struct SellerTrackedItemController: RouteCollection {
 
         groupedRoutes.get(use: getPaginatedHandler)
         groupedRoutes.get("byPeriod", use: getByPeriodHandler)
-        groupedRoutes.get("search", use: getByPeriodHandler)
+        groupedRoutes.get("search", use: searchForTrackingItemsHandler)
         groupedRoutes.post(use: createHandler)
         groupedRoutes.post("multiple", use: createMultipleHandler)
         groupedRoutes.delete(TrackedItem.parameterPath, use: deleteHandler)
@@ -28,6 +28,37 @@ struct SellerTrackedItemController: RouteCollection {
         var totalCount: Int
         var countByDate: [String: Int]
     }
+
+    private func searchForTrackingItemsHandler(request: Request) async throws -> [TrackedItem] {
+        guard let masterSellerID = request.application.masterSellerID else {
+            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
+        }
+
+        try SearchTrackedItemsInput.validate(content: request)
+        let input = try request.content.decode(SearchTrackedItemsInput.self)
+        
+        guard !input.validTrackingNumbers().isEmpty else {
+            return []
+        }
+
+        let foundTrackedItems = try await request.trackedItems
+            .find(filter: .init(searchStrings: input.validTrackingNumbers()))
+            .get()
+        
+        let foundTrackingNumbers = foundTrackedItems.map(\.trackingNumber)
+
+        let notFoundItems = input.validTrackingNumbers().filter { trackingNumber in
+            !foundTrackingNumbers.contains(where: { $0.hasSuffix(trackingNumber) })
+        }.map { trackingNumber in
+            return TrackedItem.init(sellerID: masterSellerID, trackingNumber: trackingNumber, stateTrails: [], sellerNote: "")
+        }
+        
+        var items = notFoundItems
+        items.append(contentsOf: foundTrackedItems)
+        return items
+    }
+    
+//    312948712397489237498237 2374982173489217348927314891 271389472389472893174891234 72318947123894791283478921374 892731489217389472183947 289314789123748923748923174 7213894728391748921374 7982134789123748921374 98213748912374-2348723 213749821374263478623784 23847617234623781467123846 6213784627183467823648712634
 
     private func uploadByStateHandler(request: Request) async throws -> UploadTrackedItemsByDayOutput {
         guard
