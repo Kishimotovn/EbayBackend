@@ -154,7 +154,7 @@ struct AuthController: RouteCollection {
             .unwrap(or: Abort(.badRequest))
             .get()
         
-        guard token.expiredAt <= Date() else {
+        guard token.expiredAt >= Date() else {
             try await request
                 .buyerTokens
                 .delete(id: token.requireID())
