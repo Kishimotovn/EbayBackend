@@ -80,12 +80,13 @@ struct BuyerTrackedItemController: RouteCollection {
         
         
         query.join(TrackedItemActiveState.self, on: \TrackedItemActiveState.$id == \TrackedItem.$id, method: .left)
-            .group(.or) { builder in
-                builder.filter(.sql(raw: "\(TrackedItemActiveState.schema).state IS NULL"))
-                if !input.filteredStates.isEmpty {
-                    builder.filter(TrackedItemActiveState.self, \.$state ~~ input.filteredStates)
-                }
-            }
+        
+        if input.filteredStates.isEmpty {
+            query.filter(.sql(raw: "\(TrackedItemActiveState.schema).state IS NULL"))
+        } else {
+            query.filter(TrackedItemActiveState.self, \.$state ~~ input.filteredStates)
+        }
+        
 
         let page = try await query
             .paginate(for: request)

@@ -14,6 +14,18 @@ extension Array {
         }
         return self[index]
     }
+
+    
+    func indexed<K: Hashable>(by keyForValue: (Element) throws -> K) throws -> [K: Element] {
+        return try self.reduce(into: [K: Element]()) { carry, next in
+            let key = try keyForValue(next)
+            carry[key] = next
+        }
+    }
+
+    func grouped<K: Hashable>(by keyForValue: (Element) throws -> K) throws -> [K: [Element]] {
+        return try Dictionary.init(grouping: self, by: keyForValue)
+    }
 }
 
 extension Array where Element: Hashable {
