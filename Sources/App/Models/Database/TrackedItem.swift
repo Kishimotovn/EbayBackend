@@ -23,6 +23,9 @@ final class TrackedItem: Model, Content {
     @Field(key: "seller_note")
     var sellerNote: String
 
+    @Field(key: "import_ids")
+    var importIDs: [String]
+
     enum State: String, Codable, CaseIterable {
         case receivedAtUSWarehouse
         case flyingBack
@@ -36,10 +39,12 @@ final class TrackedItem: Model, Content {
     struct StateTrail: Content {
         var state: State
         @ISO8601DateTime var updatedAt: Date
+        var importID: String?
 
-        init(state: State, updatedAt: Date = Date()) {
+        init(state: State, updatedAt: Date = Date(), importID: String?) {
             self.state = state
             self._updatedAt = .init(date: updatedAt)
+            self.importID = importID
         }
     }
 
@@ -52,12 +57,14 @@ final class TrackedItem: Model, Content {
         sellerID: Seller.IDValue?,
         trackingNumber: String,
         stateTrails: [StateTrail],
-        sellerNote: String
+        sellerNote: String,
+        importIDs: [String]
     ) {
         self.$seller.id = sellerID
         self.trackingNumber = trackingNumber
         self.stateTrails = stateTrails
         self.sellerNote = sellerNote
+        self.importIDs = importIDs
     }
 }
 

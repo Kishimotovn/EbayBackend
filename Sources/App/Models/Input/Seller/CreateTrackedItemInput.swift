@@ -16,12 +16,16 @@ struct CreateTrackedItemInput: Content {
 
 extension CreateTrackedItemInput {
     func trackedItem(by sellerID: Seller.IDValue) -> TrackedItem {
-        let trail = TrackedItem.StateTrail(state: self.state)
+        let importID = "manual-\(self.state)-\(Date().formatted(.iso8601))"
+        let trail = TrackedItem.StateTrail(state: self.state, importID: importID)
 
-        return .init(sellerID: sellerID,
-              trackingNumber: self.trackingNumber,
-              stateTrails: [trail],
-              sellerNote: self.sellerNote ?? "")
+        return .init(
+            sellerID: sellerID,
+            trackingNumber: self.trackingNumber,
+            stateTrails: [trail],
+            sellerNote: self.sellerNote ?? "",
+            importIDs: [importID]
+        )
     }
 }
 

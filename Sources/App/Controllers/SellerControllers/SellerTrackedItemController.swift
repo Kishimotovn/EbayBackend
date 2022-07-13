@@ -50,7 +50,7 @@ struct SellerTrackedItemController: RouteCollection {
         let notFoundItems = input.validTrackingNumbers().filter { trackingNumber in
             !foundTrackingNumbers.contains(where: { $0.hasSuffix(trackingNumber) })
         }.map { trackingNumber in
-            return TrackedItem.init(sellerID: masterSellerID, trackingNumber: trackingNumber, stateTrails: [], sellerNote: "")
+            return TrackedItem.init(sellerID: masterSellerID, trackingNumber: trackingNumber, stateTrails: [], sellerNote: "", importIDs: [])
         }
         
         var items = notFoundItems
@@ -59,6 +59,34 @@ struct SellerTrackedItemController: RouteCollection {
     }
     
 //    312948712397489237498237 2374982173489217348927314891 271389472389472893174891234 72318947123894791283478921374 892731489217389472183947 289314789123748923748923174 7213894728391748921374 7982134789123748921374 98213748912374-2348723 213749821374263478623784 23847617234623781467123846 6213784627183467823648712634
+    
+    private func date(from string: String, using dateFormatter: DateFormatter) -> Date? {
+        let formats = [
+            "yyyy-MM-dd' 'HH:mm:ss",
+            "MM/dd-HH:mm:ss",
+            "MM/dd",
+            "M/d",
+            "MM/dd/yyyy",
+            "M/d/yyyy"
+        ]
+        
+        for i in (0..<formats.count) {
+            let targetFormat = formats[i]
+            dateFormatter.dateFormat = targetFormat
+
+            if let date = dateFormatter.date(from: string) {
+                var components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
+                if components.year == 2000 {
+                    components.year = Calendar.current.component(.year, from: Date())
+                }
+                if let validDate = Calendar.current.date(from: components) {
+                    return validDate
+                }
+            }
+        }
+        
+        return nil
+    }
 
     private func uploadByStateHandler(request: Request) async throws -> UploadTrackedItemsByDayOutput {
         guard
@@ -71,39 +99,40 @@ struct SellerTrackedItemController: RouteCollection {
         }
 
         let dataString = String.init(buffer: buffer)
-        let csv = try NamedCSV(string: dataString)
-        
+        let csv = try EnumeratedCSV(string: dataString, loadColumns: false)
+
         let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "MM/dd/yyyy"
 
         var countByDate: [String: Int] = [:]
         var stateChangedItems = [TrackedItem]()
+        let importID = "csv-\(state)-\(Date().formatted(.iso8601))"
         
-        try await csv.header.asyncForEach { header in
-            guard let date = dateFormatter.date(from: header) else {
+        try await csv.rows.asyncForEach { row in
+            guard
+                let firstColValue = row.first,
+                let datetime = self.date(from: firstColValue, using: dateFormatter),
+                let trackingNumber = row.get(at: 2),
+                trackingNumber.count >= 5
+            else {
                 return
             }
 
-            let allTrackingNumbers = csv.columns?[header]?.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter {
-                $0.count > 8
-            }.removingDuplicates() ?? []
+            let date = datetime.toISODate()
+            countByDate[date] = (countByDate[date] ?? 0) + 1
 
-            countByDate[header] = allTrackingNumbers.count
-            
-            try await allTrackingNumbers.asyncForEach { trackingNumber in
-                let (trackedItem, stateChanged) = try await self.createOrUpdate(
-                    sellerID: masterSellerID,
-                    trackingNumber,
-                    sellerNote: nil,
-                    state: state,
-                    date: date,
-                    on: request)
-                if (stateChanged) {
-                    stateChangedItems.append(trackedItem)
-                }
+            let (trackedItem, stateChanged) = try await self.createOrUpdate(
+                sellerID: masterSellerID,
+                trackingNumber,
+                sellerNote: nil,
+                state: state,
+                date: datetime,
+                on: request,
+                importID: importID)
+            if (stateChanged) {
+                stateChangedItems.append(trackedItem)
             }
         }
-        
+
         if !stateChangedItems.isEmpty {
             try await request.emails.sendTrackedItemsUpdateEmail(for: stateChangedItems).get()
         }
@@ -184,13 +213,16 @@ struct SellerTrackedItemController: RouteCollection {
         try CreateMultipleTrackedItemInput.validate(content: request)
         let input = try request.content.decode(CreateMultipleTrackedItemInput.self)
         
+        let importID = "manual-\(input.state)-\(Date().formatted(.iso8601))"
+        
         let results = try await input.trackingNumbers.asyncMap { trackingNumber in
             return try await self.createOrUpdate(
                 sellerID: masterSellerID, trackingNumber,
                 sellerNote: input.sellerNote ?? "",
                 state: input.state,
                 date: Date(),
-                on: request)
+                on: request,
+                importID: importID)
         }
 
         let allItems = results.map(\.0)
@@ -212,7 +244,8 @@ struct SellerTrackedItemController: RouteCollection {
 
         try CreateTrackedItemInput.validate(content: request)
         let input = try request.content.decode(CreateTrackedItemInput.self)
-        let (trackedItem, stateChanged) = try await self.createOrUpdate(sellerID: masterSellerID, input.trackingNumber, sellerNote: input.sellerNote, state: input.state, date: Date(), on: request)
+        let importID = "manual-\(input.state)-\(Date().formatted(.iso8601))"
+        let (trackedItem, stateChanged) = try await self.createOrUpdate(sellerID: masterSellerID, input.trackingNumber, sellerNote: input.sellerNote, state: input.state, date: Date(), on: request, importID: importID)
 
         if stateChanged {
             try await request.emails.sendTrackedItemUpdateEmail(for: trackedItem).get()
@@ -227,7 +260,8 @@ struct SellerTrackedItemController: RouteCollection {
         sellerNote: String? = nil,
         state: TrackedItem.State,
         date: Date,
-        on request: Request
+        on request: Request,
+        importID: String
     ) async throws -> (TrackedItem, Bool) {
         if let existingTrackedItem = try await request.trackedItems.find(
             filter: .init(
@@ -243,8 +277,13 @@ struct SellerTrackedItemController: RouteCollection {
             existingTrackedItem.trackingNumber = trackingNumber
 
             if trackedItemStateChanged {
-                let newTrail = TrackedItem.StateTrail.init(state: state, updatedAt: date)
+                let newTrail = TrackedItem.StateTrail.init(
+                    state: state,
+                    updatedAt: date,
+                    importID: importID
+                )
                 existingTrackedItem.stateTrails.append(newTrail)
+                existingTrackedItem.importIDs.append(importID)
             }
 
             if let sellerNote = sellerNote {
@@ -253,12 +292,14 @@ struct SellerTrackedItemController: RouteCollection {
             try await request.trackedItems.save(existingTrackedItem).get()
             return (existingTrackedItem, trackedItemStateChanged)
         } else {
-            let newTrail = TrackedItem.StateTrail(state: state, updatedAt: date)
+            let newTrail = TrackedItem.StateTrail(state: state, updatedAt: date, importID: importID)
             let trackedItem = TrackedItem(
                 sellerID: sellerID,
                 trackingNumber: trackingNumber,
                 stateTrails: [newTrail],
-                sellerNote: sellerNote ?? "")
+                sellerNote: sellerNote ?? "",
+                importIDs: [importID]
+            )
 
             try await request.trackedItems.save(trackedItem).get()
             return (trackedItem, false)
