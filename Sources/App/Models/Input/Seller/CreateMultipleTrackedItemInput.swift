@@ -17,7 +17,7 @@ struct CreateMultipleTrackedItemInput: Content {
 extension CreateMultipleTrackedItemInput {
     func trackedItem(by sellerID: Seller.IDValue) -> [TrackedItem] {
         return self.trackingNumbers.map {
-            let importID = "manual-\(self.state)-\(Date().formatted(.iso8601))"
+            let importID = "manual-\(self.state)-\(Date().toISODateTime())"
             let trail = TrackedItem.StateTrail(state: self.state, importID: importID)
 
             return TrackedItem(sellerID: sellerID,

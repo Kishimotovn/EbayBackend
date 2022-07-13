@@ -16,7 +16,7 @@ struct CreateTrackedItemInput: Content {
 
 extension CreateTrackedItemInput {
     func trackedItem(by sellerID: Seller.IDValue) -> TrackedItem {
-        let importID = "manual-\(self.state)-\(Date().formatted(.iso8601))"
+        let importID = "manual-\(self.state)-\(Date().toISODateTime())"
         let trail = TrackedItem.StateTrail(state: self.state, importID: importID)
 
         return .init(

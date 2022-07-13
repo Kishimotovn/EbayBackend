@@ -105,7 +105,7 @@ struct SellerTrackedItemController: RouteCollection {
 
         var countByDate: [String: Int] = [:]
         var stateChangedItems = [TrackedItem]()
-        let importID = "csv-\(state)-\(Date().formatted(.iso8601))"
+        let importID = "csv-\(state)-\(Date().toISODateTime())"
         
         try await csv.rows.asyncForEach { row in
             guard
@@ -213,7 +213,7 @@ struct SellerTrackedItemController: RouteCollection {
         try CreateMultipleTrackedItemInput.validate(content: request)
         let input = try request.content.decode(CreateMultipleTrackedItemInput.self)
         
-        let importID = "manual-\(input.state)-\(Date().formatted(.iso8601))"
+        let importID = "manual-\(input.state)-\(Date().toISODateTime())"
         
         let results = try await input.trackingNumbers.asyncMap { trackingNumber in
             return try await self.createOrUpdate(
@@ -244,7 +244,7 @@ struct SellerTrackedItemController: RouteCollection {
 
         try CreateTrackedItemInput.validate(content: request)
         let input = try request.content.decode(CreateTrackedItemInput.self)
-        let importID = "manual-\(input.state)-\(Date().formatted(.iso8601))"
+        let importID = "manual-\(input.state)-\(Date().toISODateTime())"
         let (trackedItem, stateChanged) = try await self.createOrUpdate(sellerID: masterSellerID, input.trackingNumber, sellerNote: input.sellerNote, state: input.state, date: Date(), on: request, importID: importID)
 
         if stateChanged {
