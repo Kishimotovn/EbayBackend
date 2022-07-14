@@ -137,7 +137,7 @@ struct SellerTrackedItemController: RouteCollection {
         }
 
         let jobPayload = UpdateTrackedItemsPayload.init(items: updatingItems, masterSellerID: masterSellerID, importID: importID)
-        try await request.queue.dispatch(UpdateTrackedItemsJob.self, jobPayload)
+        try await request.queue.dispatch(UpdateTrackedItemsJob.self, jobPayload, maxRetryCount: 3)
 
         let totalCount = countByDate.values.reduce(0, +)
         return .init(

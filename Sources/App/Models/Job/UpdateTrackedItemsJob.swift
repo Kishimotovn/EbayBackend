@@ -28,7 +28,7 @@ struct UpdateTrackedItemsJob: AsyncJob {
     
         let results = try await context.application.db.transaction { transactionDB -> [(TrackedItem, Bool)] in
             let allItemsNumbers = items.map(\.trackingNumber)
-            let trackedItemsRepo = DatabaseTrackedItemRepository(db: context.application.db)
+            let trackedItemsRepo = DatabaseTrackedItemRepository(db: transactionDB)
             let existingTrackedItems = try await trackedItemsRepo.find(
                 filter: .init(
                     sellerID: masterSellerID,
@@ -43,7 +43,7 @@ struct UpdateTrackedItemsJob: AsyncJob {
                 }
             }
             
-            let updateResults = try await existingTrackedItems.chunkedConcurrentCompactMap(chunkSize: 10, { existingTrackedItem -> (TrackedItem, Bool)? in
+            let updateResults = try await existingTrackedItems.asyncCompactMap { existingTrackedItem -> (TrackedItem, Bool)? in
                 guard let targetUpdatedItem = items.first(where: {
                     existingTrackedItem.trackingNumber.hasSuffix($0.trackingNumber)
                 }) else {
@@ -66,8 +66,8 @@ struct UpdateTrackedItemsJob: AsyncJob {
 
                 try await existingTrackedItem.save(on: transactionDB)
                 return (existingTrackedItem, trackedItemStateChanged)
-            })
-            
+            }
+
             let newTrackedItems = newTrackingNumbers.map { item -> TrackedItem in
                 let newTrail = TrackedItem.StateTrail(state: item.state, updatedAt: item.updatedDate, importID: importID)
                 return TrackedItem(
