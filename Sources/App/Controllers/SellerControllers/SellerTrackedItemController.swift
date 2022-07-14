@@ -104,34 +104,46 @@ struct SellerTrackedItemController: RouteCollection {
         let dateFormatter = DateFormatter()
 
         var countByDate: [String: Int] = [:]
-        var stateChangedItems = [TrackedItem]()
         let importID = "csv-\(state)-\(Date().toISODateTime())"
         
-        try await csv.rows.asyncForEach { row in
+        let items: [(String, Date)] = csv.rows.reduce([]) { carry, row in
             guard
                 let firstColValue = row.first,
                 let datetime = self.date(from: firstColValue, using: dateFormatter),
                 let trackingNumber = row.get(at: 2),
                 trackingNumber.count >= 5
             else {
-                return
+                return carry
             }
 
+            var nextCarry = carry
             let date = datetime.toISODate()
             countByDate[date] = (countByDate[date] ?? 0) + 1
+            
+            let currentTrackingNumbers = carry.map(\.0)
+            
+            if !currentTrackingNumbers.contains(trackingNumber) {
+                nextCarry.append((trackingNumber, datetime))
+            }
+            
+            return nextCarry
+        }
 
-            let (trackedItem, stateChanged) = try await self.createOrUpdate(
-                sellerID: masterSellerID,
-                trackingNumber,
-                sellerNote: nil,
-                state: state,
-                date: datetime,
-                on: request,
-                importID: importID)
-            if (stateChanged) {
-                stateChangedItems.append(trackedItem)
+        let results = try await request.db.transaction { transactionDB in
+            try await items.chunkedConcurrentMap(chunkSize: 300) { item in
+                try await self.createOrUpdate(
+                    sellerID: masterSellerID,
+                    item.0,
+                    sellerNote: nil,
+                    state: state,
+                    date: item.1,
+                    on: request,
+                    importID: importID,
+                    db: transactionDB)
             }
         }
+
+        let stateChangedItems = results.filter(\.1).map(\.0)
 
         if !stateChangedItems.isEmpty {
             try await request.emails.sendTrackedItemsUpdateEmail(for: stateChangedItems).get()
@@ -261,14 +273,16 @@ struct SellerTrackedItemController: RouteCollection {
         state: TrackedItem.State,
         date: Date,
         on request: Request,
-        importID: String
+        importID: String,
+        db: Database? = nil
     ) async throws -> (TrackedItem, Bool) {
         if let existingTrackedItem = try await request.trackedItems.find(
             filter: .init(
                 sellerID: sellerID,
                 trackingNumbers: [trackingNumber],
                 limit: 1
-            )
+            ),
+            on: db
         ).first(
         ).get() {
             let trackedItemStateChanged = !existingTrackedItem.stateTrails.contains {
@@ -289,7 +303,7 @@ struct SellerTrackedItemController: RouteCollection {
             if let sellerNote = sellerNote {
                 existingTrackedItem.sellerNote = sellerNote
             }
-            try await request.trackedItems.save(existingTrackedItem).get()
+            try await request.trackedItems.save(existingTrackedItem, on: db).get()
             return (existingTrackedItem, trackedItemStateChanged)
         } else {
             let newTrail = TrackedItem.StateTrail(state: state, updatedAt: date, importID: importID)
@@ -301,7 +315,7 @@ struct SellerTrackedItemController: RouteCollection {
                 importIDs: [importID]
             )
 
-            try await request.trackedItems.save(trackedItem).get()
+            try await request.trackedItems.save(trackedItem, on: db).get()
             return (trackedItem, false)
         }
     }

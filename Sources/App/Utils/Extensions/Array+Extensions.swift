@@ -61,4 +61,81 @@ extension Sequence {
         }
         return returns
     }
+
+    func concurrentForEach(
+        withPriority priority: TaskPriority? = nil,
+        _ operation: @escaping (Element) async throws -> Void
+    ) async throws {
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            for element in self {
+                group.addTask(priority: priority) {
+                    try await operation(element)
+                }
+            }
+
+            // Propagate any errors thrown by the group's tasks:
+            for try await _ in group {}
+        }
+    }
+
+    func concurrentMap<T>(
+        withPriority priority: TaskPriority? = nil,
+        _ transform: @escaping (Element) async throws -> T
+    ) async throws -> [T] {
+        let tasks = map { element in
+            Task(priority: priority) {
+                try await transform(element)
+            }
+        }
+
+        return try await tasks.asyncMap { task in
+            try await task.value
+        }
+    }
+}
+
+extension Array {
+    func chunkedConcurrentForEach(
+        chunkSize: Int,
+        withPriority priority: TaskPriority? = nil,
+        _ operation: @escaping (Element) async throws -> Void
+    ) async throws {
+        if self.isEmpty {
+            return
+        }
+        
+        let chunk = self.prefix(chunkSize)
+        try await chunk.concurrentForEach(withPriority: priority, operation)
+       
+        if chunk.count < chunkSize {
+            return
+        }
+        
+        let nextBatch = Array(self.suffix(from: chunkSize))
+        try await nextBatch.chunkedConcurrentForEach(chunkSize: chunkSize, withPriority: priority, operation)
+    }
+
+    func chunkedConcurrentMap<T>(
+        chunkSize: Int,
+        withPriority priority: TaskPriority? = nil,
+        _ transform: @escaping (Element) async throws -> T
+    ) async throws -> [T] {
+        if self.isEmpty {
+            return []
+        }
+
+        print("remaining: ", self.count)
+        let chunk = self.prefix(chunkSize)
+        var chunkResults = try await chunk.concurrentMap(withPriority: priority, transform)
+
+        if chunk.count < chunkSize {
+            return chunkResults
+        }
+
+        let nextBatch = Array(self.suffix(from: chunkSize))
+        let nextBacthResults = try await nextBatch.chunkedConcurrentMap(chunkSize: chunkSize, withPriority: priority, transform)
+        
+        chunkResults.append(contentsOf: nextBacthResults)
+        return chunkResults
+    }
 }

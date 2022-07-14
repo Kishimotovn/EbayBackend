@@ -22,15 +22,25 @@ struct TrackedItemFilter {
 }
 
 protocol TrackedItemRepository {
-    func find(filter: TrackedItemFilter) -> EventLoopFuture<[TrackedItem]>
+    func find(filter: TrackedItemFilter, on db: Database?) -> EventLoopFuture<[TrackedItem]>
     func paginated(filter: TrackedItemFilter, pageRequest: PageRequest) -> EventLoopFuture<Page<TrackedItem>>
+}
+
+extension TrackedItemRepository {
+    func find(filter: TrackedItemFilter, on db: Database?) async throws -> [TrackedItem] {
+        try await self.find(filter: filter, on: db).get()
+    }
+
+    func find(filter: TrackedItemFilter) -> EventLoopFuture<[TrackedItem]> {
+        return self.find(filter: filter, on: nil)
+    }
 }
 
 struct DatabaseTrackedItemRepository: TrackedItemRepository, DatabaseRepository {
     let db: Database
 
-    func find(filter: TrackedItemFilter) -> EventLoopFuture<[TrackedItem]> {
-        let query = TrackedItem.query(on: db)
+    func find(filter: TrackedItemFilter, on db: Database?) -> EventLoopFuture<[TrackedItem]> {
+        let query = TrackedItem.query(on: db ?? self.db)
         self.apply(filter, to: query)
         _ = query.sort(\.$createdAt, .descending)
         return query.all()
