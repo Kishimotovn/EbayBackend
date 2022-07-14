@@ -35,7 +35,6 @@ struct DatabaseSellerAnalyticsRepository: SellerAnalyticsRepository {
             left join order_item oi on o.id = oi.order_id
             left join order_options op on op.id = o.order_option_id
             left join item i on i.id = oi.item_id
-            where s.id = $1 or b.verified_at is null
             group by b.id;
             """,
             [PostgresData(uuid: sellerID)]
