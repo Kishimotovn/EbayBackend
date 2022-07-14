@@ -14,6 +14,7 @@ public func jobs(app: Application) throws {
     let emailJob = EmailJob()
     app.queues
         .add(emailJob)
+    app.queues.add(UpdateTrackedItemsJob())
     app.queues
         .schedule(UpdateQuantityJob())
         .minutely()

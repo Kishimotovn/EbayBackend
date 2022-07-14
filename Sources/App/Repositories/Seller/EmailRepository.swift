@@ -33,12 +33,15 @@ protocol EmailRepository {
 
 struct SendGridEmailRepository: EmailRepository {
     let appFrontendURL: String
-    let request: Request
+    let queue: Queue
+    let db: Database
+    let eventLoop: EventLoop
+//    let request: Request
 
     func sendTrackedItemsUpdateEmail(for items: [TrackedItem]) throws -> EventLoopFuture<Void> {
         let itemIDs = try items.map { try $0.requireID() }
-        return request
-            .buyerTrackedItems
+        let buyerTrackedItemsRepo = DatabaseBuyerTrackedItemRepository(db: self.db)
+        return buyerTrackedItemsRepo
             .find(filter: .init(trackedItemIDs: itemIDs))
             .tryFlatMap { buyerItems in
                 let groupedBuyerItems = Dictionary.init(grouping: buyerItems, by: \.$buyer.id)
@@ -47,7 +50,7 @@ struct SendGridEmailRepository: EmailRepository {
                     let items = groupedBuyerItems[buyerID] ?? []
                     
                     guard let buyerItem = items.first else {
-                        return request.eventLoop.future()
+                        return self.eventLoop.future()
                     }
                     
                     let email = buyerItem.buyer.email
@@ -65,13 +68,13 @@ struct SendGridEmailRepository: EmailRepository {
                     }.joined(separator: "<br/>")
 
                     return try self.sendEmail(to: email, title: "🎉🥳 Hàng đã về tới kho!", content: messages)
-                }.flatten(on: self.request.eventLoop)
+                }.flatten(on: self.eventLoop)
             }
     }
 
     func sendTrackedItemUpdateEmail(for item: TrackedItem) throws -> EventLoopFuture<Void> {
-        return try request
-            .buyerTrackedItems
+        let buyerTrackedItemsRepo = DatabaseBuyerTrackedItemRepository(db: self.db)
+        return try buyerTrackedItemsRepo
             .find(filter: .init(trackedItemIDs: [item.requireID()]))
             .tryFlatMap { buyerItems in
                 return try buyerItems.map { buyerItem in
@@ -84,7 +87,7 @@ struct SendGridEmailRepository: EmailRepository {
                         content = "Mặt hàng với mã tracking: \(buyerItem.trackedItem.trackingNumber) đã được xác nhận về tới kho."
                     }
                     return try self.sendEmail(to: email, title: "🎉🥳 Hàng đã về tới kho!", content: content)
-                }.flatten(on: self.request.eventLoop)
+                }.flatten(on: self.eventLoop)
             }
     }
 
@@ -101,7 +104,7 @@ struct SendGridEmailRepository: EmailRepository {
     }
 
     func sendOrderUpdateEmail(for order: Order) throws -> EventLoopFuture<Void> {
-        return order.$buyer.load(on: self.request.db)
+        return order.$buyer.load(on: self.db)
             .tryFlatMap {
                 let emailTitle = "Đơn hàng đã được update"
                 let orderState: String
@@ -159,11 +162,11 @@ struct SendGridEmailRepository: EmailRepository {
         let payload = EmailJobPayload(destination: address,
                                        title: title, content: content)
         if Environment.get("REDIS_URL") != nil {
-            return self.request.queue.dispatch(EmailJob.self,
+            return self.queue.dispatch(EmailJob.self,
                 payload,
                 maxRetryCount: 3)
         } else {
-            return self.request.eventLoop.future()
+            return self.eventLoop.future()
         }
     }
 }

@@ -128,26 +128,16 @@ struct SellerTrackedItemController: RouteCollection {
             
             return nextCarry
         }
-
-        let results = try await request.db.transaction { transactionDB in
-            try await items.chunkedConcurrentMap(chunkSize: 300) { item in
-                try await self.createOrUpdate(
-                    sellerID: masterSellerID,
-                    item.0,
-                    sellerNote: nil,
-                    state: state,
-                    date: item.1,
-                    on: request,
-                    importID: importID,
-                    db: transactionDB)
-            }
+        
+        let updatingItems = items.map {
+            return UpdateTrackedItemsPayload.UpdatingItem(
+                trackingNumber: $0.0,
+                updatedDate: $0.1,
+                state: state)
         }
 
-        let stateChangedItems = results.filter(\.1).map(\.0)
-
-        if !stateChangedItems.isEmpty {
-            try await request.emails.sendTrackedItemsUpdateEmail(for: stateChangedItems).get()
-        }
+        let jobPayload = UpdateTrackedItemsPayload.init(items: updatingItems, masterSellerID: masterSellerID, importID: importID)
+        try await request.queue.dispatch(UpdateTrackedItemsJob.self, jobPayload)
 
         let totalCount = countByDate.values.reduce(0, +)
         return .init(

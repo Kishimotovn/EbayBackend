@@ -21,13 +21,18 @@ final class JobMonitoring: Model, Content {
     @Timestamp(key: "created_at", on: .create)
     var createdAt: Date?
 
-    @Field(key: "finished_at")
+    @OptionalField(key: "finished_at")
     var finishedAt: Date?
+
+    @OptionalField(key: "error")
+    var error: String?
 
     init() { }
 
-    init(jobName: String) {
+    init(jobName: String, error: String? = nil) {
         self.jobName = jobName
+        self.finishedAt = nil
+        self.error = error
     }
 }
 

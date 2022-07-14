@@ -62,6 +62,18 @@ extension Sequence {
         return returns
     }
 
+    func asyncCompactMap<T>(
+        _ operation: (Element) async throws -> T?
+    ) async rethrows -> [T] {
+        var returns = [T]()
+        for element in self {
+            if let returnValue = try await operation(element) {
+                returns.append(returnValue)
+            }
+        }
+        return returns
+    }
+
     func concurrentForEach(
         withPriority priority: TaskPriority? = nil,
         _ operation: @escaping (Element) async throws -> Void
@@ -89,6 +101,21 @@ extension Sequence {
         }
 
         return try await tasks.asyncMap { task in
+            try await task.value
+        }
+    }
+    
+    func concurrentCompactMap<T>(
+        withPriority priority: TaskPriority? = nil,
+        _ transform: @escaping (Element) async throws -> T?
+    ) async throws -> [T] {
+        let tasks = map { element in
+            Task(priority: priority) {
+                try await transform(element)
+            }
+        }
+
+        return try await tasks.asyncCompactMap { task in
             try await task.value
         }
     }
@@ -134,6 +161,30 @@ extension Array {
 
         let nextBatch = Array(self.suffix(from: chunkSize))
         let nextBacthResults = try await nextBatch.chunkedConcurrentMap(chunkSize: chunkSize, withPriority: priority, transform)
+        
+        chunkResults.append(contentsOf: nextBacthResults)
+        return chunkResults
+    }
+    
+    func chunkedConcurrentCompactMap<T>(
+        chunkSize: Int,
+        withPriority priority: TaskPriority? = nil,
+        _ transform: @escaping (Element) async throws -> T?
+    ) async throws -> [T] {
+        if self.isEmpty {
+            return []
+        }
+
+        print("remaining: ", self.count)
+        let chunk = self.prefix(chunkSize)
+        var chunkResults = try await chunk.concurrentCompactMap(withPriority: priority, transform)
+
+        if chunk.count < chunkSize {
+            return chunkResults
+        }
+
+        let nextBatch = Array(self.suffix(from: chunkSize))
+        let nextBacthResults = try await nextBatch.chunkedConcurrentCompactMap(chunkSize: chunkSize, withPriority: priority, transform)
         
         chunkResults.append(contentsOf: nextBacthResults)
         return chunkResults

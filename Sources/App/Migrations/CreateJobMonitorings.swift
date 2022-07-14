@@ -15,6 +15,7 @@ struct CreateJobMonitorings: Migration {
             .field("job_name", .string, .required)
             .field("created_at", .datetime)
             .field("finished_at", .datetime)
+            .field("error", .string)
             .create()
     }
 

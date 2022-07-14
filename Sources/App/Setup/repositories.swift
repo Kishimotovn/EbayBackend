@@ -60,8 +60,12 @@ public func setupRepositories(app: Application) throws {
         return DatabaseJobMonitoringRepository(db: req.db)
     }
     app.emails.use { req in
-        return SendGridEmailRepository(appFrontendURL: req.application.appFrontendURL ?? "",
-                                       request: req)
+        return SendGridEmailRepository(
+            appFrontendURL: req.application.appFrontendURL ?? "",
+            queue: req.queue,
+            db: req.db,
+            eventLoop: req.eventLoop
+        )
     }
     app.buyerResetPasswordTokens.use { req in
         return DatabaseBuyerResetPasswordTokenRepository(db: req.db)
