@@ -91,11 +91,13 @@ struct SellerTrackedItemController: RouteCollection {
         if fileManager.fileExists(atPath: path) && fileManager.isDeletableFile(atPath: path) {
             try fileManager.removeItem(atPath: path)
         }
+        print("uploaded file at path", path)
         
-        FileManager().createFile(atPath: path,
+        let created = FileManager().createFile(atPath: path,
                                  contents: data,
                                  attributes: [.size: data.count])
-        request.logger.info("Uploaded file at path \(path)")
+        request.application.logger.info("Uploaded file at path \(path)")
+        print("uploaded file at path", path)
         
         let newJob = TrackedItemUploadJob(
             fileName: fileName,
