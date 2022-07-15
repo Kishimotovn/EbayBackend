@@ -37,7 +37,7 @@ struct UpdateQuantityJob: ScheduledJob {
                     return item
                 }
 
-                context.application.logger.info("Running scan for \(validItems.count) items")
+//                context.application.logger.info("Running scan for \(validItems.count) items")
                 if validItems.isEmpty {
                     return context
                         .eventLoop

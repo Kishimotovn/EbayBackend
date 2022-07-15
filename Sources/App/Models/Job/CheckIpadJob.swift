@@ -116,11 +116,11 @@ struct CheckIpadJob: ScheduledJob {
                 let deleteChanges = changes.compactMap { $0.delete }
                 let shouldNotify = !insertChanges.isEmpty || !deleteChanges.isEmpty
                 
-                context.application.logger.info("===========================================")
-                context.application.logger.info("Should notify for ipad: \(shouldNotify)")
-                context.application.logger.info("Insert count ipad: \(insertChanges.count)")
-                context.application.logger.info("Delete count for ipad: \(deleteChanges.count)")
-                context.application.logger.info("===========================================")
+//                context.application.logger.info("===========================================")
+//                context.application.logger.info("Should notify for ipad: \(shouldNotify)")
+//                context.application.logger.info("Insert count ipad: \(insertChanges.count)")
+//                context.application.logger.info("Delete count for ipad: \(deleteChanges.count)")
+//                context.application.logger.info("===========================================")
 
                 guard shouldNotify else {
                     return context.application.redis.set("ipad_products", toJSON: newItems)
@@ -199,7 +199,7 @@ struct CheckIpadJob: ScheduledJob {
                             .send(email: email,
                                   on: context.eventLoop))
                 }
-                context.application.logger.info("sending \(emails.count) emails to \(context.application.notificationEmails)")
+//                context.application.logger.info("sending \(emails.count) emails to \(context.application.notificationEmails)")
                 return emails
                     .flatten(on: context.eventLoop)
                     .flatMap {

@@ -223,12 +223,12 @@ class ClientEbayAPIRepository: EbayAPIRepository {
 
         return self.client.get(uri)
             .map { response -> (Int?, [VolumeDiscount]?) in
-                self.application.logger.info("Got response for \(urlString)")
+//                self.application.logger.info("Got response for \(urlString)")
                 do {
                     if let body = response.body {
                         let html = String(buffer: body)
                         let doc: Document = try SwiftSoup.parse(html)
-                        self.application.logger.info("parsed \(urlString)")
+//                        self.application.logger.info("parsed \(urlString)")
                         var directDiscount: Int?
 
                         if let element = try doc.select(".smeOfferMsg").first()?.text().lowercased() {

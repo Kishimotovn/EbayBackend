@@ -94,7 +94,8 @@ struct SellerTrackedItemController: RouteCollection {
         
         FileManager().createFile(atPath: path,
                                  contents: data,
-                                 attributes: nil)
+                                 attributes: [.size: data.count])
+        request.logger.info("Uploaded file at path \(path)")
         
         let newJob = TrackedItemUploadJob(
             fileName: fileName,

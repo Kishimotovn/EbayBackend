@@ -40,7 +40,7 @@ struct UpdateSellerJob: ScheduledJob {
                     return context.eventLoop.future()
                 }
 
-                context.application.logger.info("Running scan for \(validSubscriptions.count) sellers")
+//                context.application.logger.info("Running scan for \(validSubscriptions.count) sellers")
                 let clientEbayRepository = ClientEbayAPIRepository(
                     application: context.application,
                     client: context.application.client,
@@ -56,7 +56,7 @@ struct UpdateSellerJob: ScheduledJob {
     
     private func runByChunk(subscriptions: [SellerSellerSubscription], chunk: Int, clientEbayRepository: ClientEbayAPIRepository, context: QueueContext) -> EventLoopFuture<Void> {
         let batchSubcription = subscriptions.prefix(chunk)
-        context.application.logger.info("Running batch with count: \(batchSubcription.count)")
+//        context.application.logger.info("Running batch with count: \(batchSubcription.count)")
 
         let batch = batchSubcription.map { subscription in
             return clientEbayRepository
@@ -84,15 +84,15 @@ struct UpdateSellerJob: ScheduledJob {
                     }.count
                     let deleteChangesCount = changes.compactMap{ $0.delete }.count
                     
-                    context.application.logger.info("===========================================")
-                    context.application.logger.info("Change count for \(subscription.sellerName) - \(subscription.keyword): \(changesCount)")
-                    context.application.logger.info("Reorder count for \(subscription.sellerName) - \(subscription.keyword): \(reorderCount)")
-                    context.application.logger.info("Changes that are not price count for \(subscription.sellerName) - \(subscription.keyword): \(changesThatAreNotPriceCount)")
-                    context.application.logger.info("Should notify for \(subscription.sellerName) - \(subscription.keyword): \(shouldNotify)")
-                    context.application.logger.info("Insert count \(subscription.sellerName) - \(subscription.keyword): \(insertChangesCount)")
-                    context.application.logger.info("Delete count for \(subscription.sellerName) - \(subscription.keyword): \(deleteChangesCount)")
-                    context.application.logger.info("Price change count for \(subscription.sellerName) - \(subscription.keyword): \(changesThatArePriceChangesCount)")
-                    context.application.logger.info("===========================================")
+//                    context.application.logger.info("===========================================")
+//                    context.application.logger.info("Change count for \(subscription.sellerName) - \(subscription.keyword): \(changesCount)")
+//                    context.application.logger.info("Reorder count for \(subscription.sellerName) - \(subscription.keyword): \(reorderCount)")
+//                    context.application.logger.info("Changes that are not price count for \(subscription.sellerName) - \(subscription.keyword): \(changesThatAreNotPriceCount)")
+//                    context.application.logger.info("Should notify for \(subscription.sellerName) - \(subscription.keyword): \(shouldNotify)")
+//                    context.application.logger.info("Insert count \(subscription.sellerName) - \(subscription.keyword): \(insertChangesCount)")
+//                    context.application.logger.info("Delete count for \(subscription.sellerName) - \(subscription.keyword): \(deleteChangesCount)")
+//                    context.application.logger.info("Price change count for \(subscription.sellerName) - \(subscription.keyword): \(changesThatArePriceChangesCount)")
+//                    context.application.logger.info("===========================================")
 
                     return subscription
                         .save(on: context.application.db)
@@ -253,11 +253,11 @@ struct UpdateSellerJob: ScheduledJob {
 
         return batch.flatten(on: context.eventLoop).flatMap { _ -> EventLoopFuture<Void> in
             if batchSubcription.count < chunk {
-                context.application.logger.info("End... no more chunks")
+//                context.application.logger.info("End... no more chunks")
                 return context.eventLoop.future()
             } else {
                 let newBatch = subscriptions.suffix(from: chunk)
-                context.application.logger.info("Continue with batch: \(newBatch.count)")
+//                context.application.logger.info("Continue with batch: \(newBatch.count)")
                 return self.runByChunk(subscriptions: Array(newBatch), chunk: chunk, clientEbayRepository: clientEbayRepository, context: context)
             }
         }

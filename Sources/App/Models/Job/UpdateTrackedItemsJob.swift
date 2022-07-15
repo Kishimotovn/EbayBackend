@@ -31,6 +31,9 @@ struct UpdateTrackedItemsJob: AsyncJob {
         
         let path = workPath + uploadFolder + fileName
         
+        
+        context.application.logger.info("Reading file file at path \(path)")
+        
         let buffer = try await self.collectFile(
             io: context.application.fileio,
             allocator: context.application.allocator,
@@ -289,9 +292,9 @@ struct UpdateTrackedItemsJob: AsyncJob {
         let uploadFolder = "CSVUploads/"
         let path = workPath + uploadFolder + fileName
 
-        let fileManager = FileManager()
-        if fileManager.fileExists(atPath: path) && fileManager.isDeletableFile(atPath: path) {
-            try fileManager.removeItem(atPath: path)
-        }
+//        let fileManager = FileManager()
+//        if fileManager.fileExists(atPath: path) && fileManager.isDeletableFile(atPath: path) {
+//            try fileManager.removeItem(atPath: path)
+//        }
     }
 }
