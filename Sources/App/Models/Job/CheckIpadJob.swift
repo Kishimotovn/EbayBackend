@@ -206,7 +206,7 @@ struct CheckIpadJob: ScheduledJob {
                         return context.application.redis.set("ipad_products", toJSON: newItems)
                     }
             }.flatMapErrorThrowing { error in
-                context.application.logger.error("Failed seller scan for IPAD with error \(error)")
+//                context.application.logger.error("Failed seller scan for IPAD with error \(error)")
                 return
             }
     }

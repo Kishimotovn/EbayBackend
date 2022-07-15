@@ -246,7 +246,7 @@ struct UpdateSellerJob: ScheduledJob {
                     }
                 }
                 .flatMapErrorThrowing { error in
-                    context.application.logger.error("Failed seller scan for \(subscription.sellerName) - \(subscription.keyword) with error \(error)")
+//                    context.application.logger.error("Failed seller scan for \(subscription.sellerName) - \(subscription.keyword) with error \(error)")
                     return
                 }
         }
@@ -280,7 +280,7 @@ struct UpdateSellerJob: ScheduledJob {
             }
             return repo.checkFurtherDiscountFromWebPage(urlString: itemURL)
                 .flatMapErrorThrowing { error in
-                    repo.application.logger.error("Failed to get further discount \(item.safeTitle) - \(itemURL)")
+//                    repo.application.logger.error("Failed to get further discount \(item.safeTitle) - \(itemURL)")
                     return false
                 }
                 .and(value: itemID)
