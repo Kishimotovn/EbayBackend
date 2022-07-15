@@ -5,6 +5,7 @@ import Vapor
 // configures your application
 public func configure(_ app: Application) throws {
     // setup repositories:
+    app.logger.logLevel = .debug
     try setupRepositories(app: app)
 
     // register routes

@@ -80,7 +80,6 @@ struct SellerTrackedItemController: RouteCollection {
             throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
         }
 
-        let data = Data(buffer: buffer)
         let workPath = request.application.directory.workingDirectory
         let uploadFolder = "CSVUploads/"
         
@@ -93,9 +92,8 @@ struct SellerTrackedItemController: RouteCollection {
         }
         print("uploaded file at path", path)
         
-        let created = FileManager().createFile(atPath: path,
-                                 contents: data,
-                                 attributes: [.size: data.count])
+        try await request.fileio.writeFile(buffer, at: path)
+
         request.application.logger.info("Uploaded file at path \(path)")
         print("uploaded file at path", path)
         
