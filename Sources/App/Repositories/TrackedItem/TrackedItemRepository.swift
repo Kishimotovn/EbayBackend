@@ -17,7 +17,6 @@ struct TrackedItemFilter {
     var searchStrings: [String]? = nil
     var dateRange: DateInterval? = nil
     var limit: Int? = nil
-    var buyerID: Buyer.IDValue? = nil
     var date: Date? = nil
 }
 
@@ -81,10 +80,6 @@ struct DatabaseTrackedItemRepository: TrackedItemRepository, DatabaseRepository 
         }
         if let limit = filter.limit {
             query.limit(limit)
-        }
-        if let buyerID = filter.buyerID {
-            query.join(BuyerTrackedItem.self, on: \BuyerTrackedItem.$trackedItem.$id == \TrackedItem.$id)
-                .filter(BuyerTrackedItem.self, \.$buyer.$id == buyerID)
         }
         if let date = filter.date {
             query.filter(.sql(raw: "\(TrackedItem.schema).created_at::DATE"), .equal, .bind(date))

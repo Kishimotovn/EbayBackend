@@ -8,7 +8,7 @@
 import Foundation
 import Vapor
 import Fluent
-import SwiftCSV
+import CodableCSV
 
 struct SellerTrackedItemController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
@@ -19,14 +19,25 @@ struct SellerTrackedItemController: RouteCollection {
         groupedRoutes.get("search", use: searchForTrackingItemsHandler)
         groupedRoutes.post(use: createHandler)
         groupedRoutes.post("multiple", use: createMultipleHandler)
-        groupedRoutes.delete(TrackedItem.parameterPath, use: deleteHandler)
-        groupedRoutes.delete("clearDay", use: clearDayHandler)
-        groupedRoutes.on(.POST, "uploadByState", ":state", body: .collect(maxSize: "50mb"), use: uploadByStateHandler)
+        groupedRoutes.on(.POST, "uploadByState", ":state", ":fileName", body: .collect(maxSize: "50mb"), use: uploadByStateHandler)
+        groupedRoutes.get("uploadJobs", use: getUploadJobsHandler)
     }
 
     struct UploadTrackedItemsByDayOutput: Content {
         var totalCount: Int
         var countByDate: [String: Int]
+    }
+
+    private func getUploadJobsHandler(request: Request) async throws -> Page<TrackedItemUploadJob> {
+        guard let masterSellerID = request.application.masterSellerID else {
+            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
+        }
+
+        let query = TrackedItemUploadJob.query(on: request.db)
+            .filter(\.$seller.$id == masterSellerID)
+            .sort(\.$createdAt, .descending)
+
+        return try await query.paginate(for: request)
     }
 
     private func searchForTrackingItemsHandler(request: Request) async throws -> [TrackedItem] {
@@ -57,154 +68,46 @@ struct SellerTrackedItemController: RouteCollection {
         items.append(contentsOf: foundTrackedItems)
         return items
     }
-    
-//    312948712397489237498237 2374982173489217348927314891 271389472389472893174891234 72318947123894791283478921374 892731489217389472183947 289314789123748923748923174 7213894728391748921374 7982134789123748921374 98213748912374-2348723 213749821374263478623784 23847617234623781467123846 6213784627183467823648712634
-    
-    private func date(from string: String, using dateFormatter: DateFormatter) -> Date? {
-        let formats = [
-            "yyyy-MM-dd' 'HH:mm:ss",
-            "MM/dd-HH:mm:ss",
-            "MM/dd",
-            "M/d",
-            "MM/dd/yyyy",
-            "M/d/yyyy"
-        ]
-        
-        for i in (0..<formats.count) {
-            let targetFormat = formats[i]
-            dateFormatter.dateFormat = targetFormat
 
-            if let date = dateFormatter.date(from: string) {
-                var components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
-                if components.year == 2000 {
-                    components.year = Calendar.current.component(.year, from: Date())
-                }
-                if let validDate = Calendar.current.date(from: components) {
-                    return validDate
-                }
-            }
-        }
-        
-        return nil
-    }
-
-    private func uploadByStateHandler(request: Request) async throws -> UploadTrackedItemsByDayOutput {
+    private func uploadByStateHandler(request: Request) async throws -> TrackedItemUploadJob {
         guard
             let masterSellerID = request.application.masterSellerID,
             let buffer = request.body.data,
             let stateRaw = request.parameters.get("state", as: String.self),
-            let state = TrackedItem.State(rawValue: stateRaw)
+            let state = TrackedItem.State(rawValue: stateRaw),
+            let fileNamePrefix = request.parameters.get("fileName", as: String.self)
         else {
             throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
         }
 
-        let dataString = String.init(buffer: buffer)
-        let csv = try EnumeratedCSV(string: dataString, loadColumns: false)
-
-        let dateFormatter = DateFormatter()
-
-        var countByDate: [String: Int] = [:]
-        let importID = "csv-\(state)-\(Date().toISODateTime())"
+        let data = Data(buffer: buffer)
+        let workPath = request.application.directory.workingDirectory
+        let uploadFolder = "CSVUploads/"
         
-        let items: [(String, Date)] = csv.rows.reduce([]) { carry, row in
-            guard
-                let firstColValue = row.first,
-                let datetime = self.date(from: firstColValue, using: dateFormatter),
-                let trackingNumber = row.get(at: 2),
-                trackingNumber.count >= 5
-            else {
-                return carry
-            }
+        let fileName = fileNamePrefix + "-\(Date().toISODateTime()).csv"
+        let path = workPath + uploadFolder + fileName
 
-            var nextCarry = carry
-            let date = datetime.toISODate()
-            countByDate[date] = (countByDate[date] ?? 0) + 1
-            
-            let currentTrackingNumbers = carry.map(\.0)
-            
-            if !currentTrackingNumbers.contains(trackingNumber) {
-                nextCarry.append((trackingNumber, datetime))
-            }
-            
-            return nextCarry
+        let fileManager = FileManager()
+        if fileManager.fileExists(atPath: path) && fileManager.isDeletableFile(atPath: path) {
+            try fileManager.removeItem(atPath: path)
         }
         
-        let updatingItems = items.map {
-            return UpdateTrackedItemsPayload.UpdatingItem(
-                trackingNumber: $0.0,
-                updatedDate: $0.1,
-                state: state)
-        }
-
-        let jobPayload = UpdateTrackedItemsPayload.init(items: updatingItems, masterSellerID: masterSellerID, importID: importID)
-        try await request.queue.dispatch(UpdateTrackedItemsJob.self, jobPayload, maxRetryCount: 3)
-
-        let totalCount = countByDate.values.reduce(0, +)
-        return .init(
-            totalCount: totalCount,
-            countByDate: countByDate
+        FileManager().createFile(atPath: path,
+                                 contents: data,
+                                 attributes: nil)
+        
+        let newJob = TrackedItemUploadJob(
+            fileName: fileName,
+            state: state,
+            sellerID: masterSellerID
         )
-    }
 
-    private func clearDayHandler(request: Request) throws -> EventLoopFuture<HTTPResponseStatus> {
-        guard let masterSellerID = request.application.masterSellerID else {
-            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
-        }
-
-        struct QueryBody: Content {
-            @ISO8601Date var date: Date
-        }
-
-        let input = try request.query.decode(QueryBody.self)
-
-        return request.trackedItems
-            .find(filter: .init(sellerID: masterSellerID, date: input.date))
-            .flatMap { trackedItems -> EventLoopFuture<Void> in
-                let trackedItemIDs = trackedItems.compactMap(\.id)
-                guard !trackedItemIDs.isEmpty else {
-                    return request.eventLoop.future()
-                }
-
-                return request.db.transaction { db in
-                    return BuyerTrackedItem.query(on: db)
-                        .filter(\.$trackedItem.$id ~~ trackedItemIDs)
-                        .delete()
-                        .flatMap {
-                            return trackedItems.delete(on: db)
-                        }
-                }
-            }.transform(to: .ok)
-    }
-
-    private func deleteHandler(request: Request) throws -> EventLoopFuture<HTTPResponseStatus> {
-        guard let masterSellerID = request.application.masterSellerID else {
-            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
-        }
-
-        guard let trackedItemID: TrackedItem.IDValue = request.parameters.get(TrackedItem.parameter) else {
-            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
-        }
-
-        return request.trackedItems
-            .find(filter: .init(ids: [trackedItemID], sellerID: masterSellerID, limit: 1))
-            .first()
-            .flatMap { (trackedItem: TrackedItem?) -> EventLoopFuture<Void> in
-                if let trackedItem = trackedItem {
-                    return trackedItem
-                        .$buyerTrackedItems
-                        .get(on: request.db)
-                        .flatMap { buyerTrackedItems in
-                            return request.db.transaction { db in
-                                return buyerTrackedItems.delete(on: db)
-                                    .flatMap {
-                                        return trackedItem.delete(on: db)
-                                    }
-                            }
-                        }
-                } else {
-                    return request.eventLoop.future()
-                }
-            }.transform(to: .ok)
+        try await newJob.save(on: request.db)
+        
+        let dispatchPayload = try UpdateTrackedItemsPayload.init(jobID: newJob.requireID())
+        try await request.queue.dispatch(UpdateTrackedItemsJob.self, dispatchPayload)
+        
+        return newJob
     }
 
     private func createMultipleHandler(request: Request) async throws -> [TrackedItem] {

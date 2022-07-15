@@ -36,34 +36,53 @@ struct SendGridEmailRepository: EmailRepository {
     let queue: Queue
     let db: Database
     let eventLoop: EventLoop
-//    let request: Request
 
     func sendTrackedItemsUpdateEmail(for items: [TrackedItem]) throws -> EventLoopFuture<Void> {
         let itemIDs = try items.map { try $0.requireID() }
-        let buyerTrackedItemsRepo = DatabaseBuyerTrackedItemRepository(db: self.db)
-        return buyerTrackedItemsRepo
-            .find(filter: .init(trackedItemIDs: itemIDs))
+            
+        return BuyerTrackedItem.query(on: self.db)
+            .join(siblings: \.$trackedItems)
+            .filter(TrackedItem.self, \.$id ~~ itemIDs)
+            .all()
             .tryFlatMap { buyerItems in
                 let groupedBuyerItems = Dictionary.init(grouping: buyerItems, by: \.$buyer.id)
 
                 return try groupedBuyerItems.keys.map { buyerID in
-                    let items = groupedBuyerItems[buyerID] ?? []
-                    
-                    guard let buyerItem = items.first else {
+                    let buyerItems = groupedBuyerItems[buyerID] ?? []
+
+                    guard let buyerItem = buyerItems.first else {
                         return self.eventLoop.future()
                     }
-                    
+
                     let email = buyerItem.buyer.email
-                    
-                    func message(for item: BuyerTrackedItem) -> String {
+
+                    func message(for item: BuyerTrackedItem) -> String? {
+                        guard let updatedItem = try? item.joined(TrackedItem.self) else{
+                            return nil
+                        }
+                        
+                        let state: String
+                        switch updatedItem.state {
+                        case .delivered:
+                            state = "đã giao"
+                        case .flyingBack:
+                            state = "đang trên đường vận chuyển từ US -> VN"
+                        case .receivedAtUSWarehouse:
+                            state = "về tới kho US"
+                        case .receivedAtVNWarehouse:
+                            state = "về tới kho VN"
+                        default:
+                            return nil
+                        }
+                        
                         if !item.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                            return "- \(item.note) (Mã tracking: \(item.trackedItem.trackingNumber)) đã được xác nhận về tới kho."
+                            return "- \(item.note) (Mã tracking: \(item.trackingNumber)) đã được xác nhận \(state)."
                         } else {
-                            return "- Mặt hàng với mã tracking: \(item.trackedItem.trackingNumber) đã được xác nhận về tới kho."
+                            return "- Mặt hàng với mã tracking: \(item.trackingNumber) đã được xác nhận về \(state)."
                         }
                     }
-    
-                    let messages = items.map { item in
+
+                    let messages = buyerItems.compactMap { item in
                         message(for: item)
                     }.joined(separator: "<br/>")
 
@@ -73,18 +92,33 @@ struct SendGridEmailRepository: EmailRepository {
     }
 
     func sendTrackedItemUpdateEmail(for item: TrackedItem) throws -> EventLoopFuture<Void> {
-        let buyerTrackedItemsRepo = DatabaseBuyerTrackedItemRepository(db: self.db)
-        return try buyerTrackedItemsRepo
-            .find(filter: .init(trackedItemIDs: [item.requireID()]))
+        return try BuyerTrackedItem.query(on: self.db)
+            .join(siblings: \.$trackedItems)
+            .filter(TrackedItem.self, \.$id == item.requireID())
+            .all()
             .tryFlatMap { buyerItems in
                 return try buyerItems.map { buyerItem in
                     let email = buyerItem.buyer.email
                     let content: String
                     
+                    let state: String
+                    switch item.state {
+                    case .delivered:
+                        state = "đã giao"
+                    case .flyingBack:
+                        state = "đang trên đường vận chuyển từ US -> VN"
+                    case .receivedAtUSWarehouse:
+                        state = "về tới kho US"
+                    case .receivedAtVNWarehouse:
+                        state = "về tới kho VN"
+                    default:
+                        return self.eventLoop.future()
+                    }
+                    
                     if !buyerItem.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        content = "\(buyerItem.note) (Mã tracking: \(buyerItem.trackedItem.trackingNumber)) đã được xác nhận về tới kho."
+                        content = "\(buyerItem.note) (Mã tracking: \(buyerItem.trackingNumber)) đã được xác nhận \(state)."
                     } else {
-                        content = "Mặt hàng với mã tracking: \(buyerItem.trackedItem.trackingNumber) đã được xác nhận về tới kho."
+                        content = "Mặt hàng với mã tracking: \(buyerItem.trackingNumber) đã được xác nhận \(state)."
                     }
                     return try self.sendEmail(to: email, title: "🎉🥳 Hàng đã về tới kho!", content: content)
                 }.flatten(on: self.eventLoop)

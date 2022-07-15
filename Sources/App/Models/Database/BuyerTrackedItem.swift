@@ -27,19 +27,22 @@ final class BuyerTrackedItem: Model, Content  {
     @Parent(key: "buyer_id")
     var buyer: Buyer
 
-    @Parent(key: "tracked_item_id")
-    var trackedItem: TrackedItem
+    @Field(key: "tracking_number")
+    var trackingNumber: String
+
+    @Siblings(through: BuyerTrackedItemLinkView.self, from: \.$buyerTrackedItem, to: \.$trackedItem)
+    var trackedItems: [TrackedItem]
 
     init() { }
 
     init(
         note: String,
         buyerID: Buyer.IDValue,
-        trackedItemID: TrackedItem.IDValue
+        trackingNumber: String
     ) {
         self.note = note
         self.$buyer.id = buyerID
-        self.$trackedItem.id = trackedItemID
+        self.trackingNumber = trackingNumber
     }
 }
 

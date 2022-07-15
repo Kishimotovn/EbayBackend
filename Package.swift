@@ -17,7 +17,8 @@ let package = Package(
         .package(url: "https://github.com/vapor-community/sendgrid.git", from: "4.0.0"),
         .package(url: "https://github.com/onmyway133/DeepDiff.git", .upToNextMajor(from: "2.3.0")),
             .package(url: "https://github.com/vapor/redis.git", from: "4.0.0"),
-        .package(url: "https://github.com/swiftcsv/SwiftCSV.git", from: "0.8.0")
+        .package(url: "https://github.com/dehesa/CodableCSV.git", from: "0.6.7")
+//        .package(url: "https://github.com/swiftcsv/SwiftCSV.git", from: "0.8.0")
     ],
     targets: [
         .target(
@@ -32,7 +33,8 @@ let package = Package(
                 .product(name: "QueuesRedisDriver", package: "queues-redis-driver"),
                 .product(name: "SendGrid", package: "sendgrid"),
                 .product(name: "Redis", package: "redis"),
-                .product(name: "SwiftCSV", package: "SwiftCSV")
+                .product(name: "CodableCSV", package: "CodableCSV"),
+//                .product(name: "SwiftCSV", package: "SwiftCSV")
             ],
             swiftSettings: [
                 // Enable better optimizations when building in Release configuration. Despite the use of

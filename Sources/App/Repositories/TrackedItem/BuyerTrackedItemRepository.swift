@@ -12,7 +12,7 @@ import Fluent
 struct BuyerTrackedItemFilter {
     var ids: [BuyerTrackedItem.IDValue]? = nil
     var buyerID: Buyer.IDValue? = nil
-    var trackedItemIDs: [TrackedItem.IDValue]? = nil
+    var trackingNumbers: [String]? = nil
     var limit: Int? = nil
 }
 
@@ -27,23 +27,17 @@ struct DatabaseBuyerTrackedItemRepository: BuyerTrackedItemRepository, DatabaseR
     func find(filter: BuyerTrackedItemFilter) -> EventLoopFuture<[BuyerTrackedItem]> {
         let query = BuyerTrackedItem.query(on: db)
         self.apply(filter, to: query)
-        query.with(\.$trackedItem)
         query.with(\.$buyer)
         _ = query
-            .join(TrackedItemAlias.self, on: \TrackedItemAlias.$id == \BuyerTrackedItem.$trackedItem.$id)
             .sort(\.$createdAt, .descending)
-            .sort(TrackedItemAlias.self, \.$updatedAt, .ascending)
         return query.all()
     }
 
     func paginated(filter: BuyerTrackedItemFilter, pageRequest: PageRequest) -> EventLoopFuture<Page<BuyerTrackedItem>> {
         let query = BuyerTrackedItem.query(on: db)
         self.apply(filter, to: query)
-        query.with(\.$trackedItem)
         _ = query
-            .join(TrackedItemAlias.self, on: \TrackedItemAlias.$id == \BuyerTrackedItem.$trackedItem.$id)
             .sort(\.$createdAt, .descending)
-            .sort(TrackedItemAlias.self, \.$updatedAt, .ascending)
         return query.paginate(pageRequest)
     }
 
@@ -54,8 +48,16 @@ struct DatabaseBuyerTrackedItemRepository: BuyerTrackedItemRepository, DatabaseR
         if let buyerID = filter.buyerID {
             query.filter(\.$buyer.$id == buyerID)
         }
-        if let trackedItemIDs = filter.trackedItemIDs, !trackedItemIDs.isEmpty {
-            query.filter(\.$trackedItem.$id ~~ trackedItemIDs)
+        if let trackingNumbers = filter.trackingNumbers, !trackingNumbers.isEmpty {
+            query.group(.or) { builder in
+                builder.filter(\.$trackingNumber ~~ trackingNumbers)
+                trackingNumbers.forEach { number in
+                    builder.filter(.sql(raw: "'\(number)'::text ILIKE CONCAT('%',\(BuyerTrackedItem.schema).tracking_number)"))
+                }
+                trackingNumbers.forEach { number in
+                    builder.filter(.sql(raw: "\(BuyerTrackedItem.schema).tracking_number"), .custom("ILIKE"), .bind("%\(number)"))
+                }
+            }
         }
         if let limit = filter.limit {
             query.limit(limit)

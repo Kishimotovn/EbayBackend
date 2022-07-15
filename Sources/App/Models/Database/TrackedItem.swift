@@ -48,8 +48,8 @@ final class TrackedItem: Model, Content {
         }
     }
 
-    @Children(for: \.$trackedItem)
-    var buyerTrackedItems: [BuyerTrackedItem]
+//    @Children(for: \.$trackedItem)
+//    var buyerTrackedItems: [BuyerTrackedItem]
 
     init() {}
 
@@ -77,3 +77,17 @@ extension TrackedItem {
 }
 
 extension TrackedItem: Parameter { }
+
+extension TrackedItem {
+    func new() -> TrackedItem {
+        let newTrackedItem = TrackedItem(
+            sellerID: self.$seller.id,
+            trackingNumber: self.trackingNumber,
+            stateTrails: self.stateTrails,
+            sellerNote: self.sellerNote,
+            importIDs: self.importIDs
+        )
+        newTrackedItem.createdAt = self.createdAt
+        return newTrackedItem
+    }
+}

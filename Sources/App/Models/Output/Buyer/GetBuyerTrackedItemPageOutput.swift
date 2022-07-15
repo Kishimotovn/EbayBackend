@@ -11,6 +11,6 @@ struct GetBuyerTrackedItemPageOutput: Content {
         var filteredStates: [TrackedItem.State]
     }
 
-    var items: [BuyerTrackedItem]
+    var items: [BuyerTrackedItemOutput]
     var metadata: Metadata
 }

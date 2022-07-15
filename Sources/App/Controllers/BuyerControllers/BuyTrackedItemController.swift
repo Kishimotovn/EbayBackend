@@ -26,11 +26,10 @@ struct BuyerTrackedItemController: RouteCollection {
         buyerProtectedRoutes.post("register", use: registerMultipleItemHandler)
         buyerProtectedRoutes.delete(use: deleteMultipleItemsHandler)
         buyerProtectedRoutes.patch(use: updateMultipleItemsHandler)
-        buyerProtectedRoutes.post(TrackedItem.parameterPath, "register", use: registerBuyerTrackedItemHandler)
         buyerProtectedRoutes.patch(BuyerTrackedItem.parameterPath, use: updateBuyerTrackedItemHandler)
     }
     
-    private func updateMultipleItemsHandler(request: Request) async throws -> [BuyerTrackedItem] {
+    private func updateMultipleItemsHandler(request: Request) async throws -> [BuyerTrackedItemOutput] {
         let buyer = try request.auth.require(Buyer.self)
         let buyerID = try buyer.requireID()
 
@@ -42,11 +41,18 @@ struct BuyerTrackedItemController: RouteCollection {
             .set(\.$note, to: input.sharedNote)
             .update()
 
-        return try await BuyerTrackedItem.query(on: request.db)
+        // TODO: LOOK AT THIS!
+        let allItems = try await BuyerTrackedItem.query(on: request.db)
             .filter(\.$id ~~ input.trackedItemIDs)
             .filter(\.$buyer.$id == buyerID)
-            .with(\.$trackedItem)
             .all()
+
+        let targetTrackedNumbers = allItems.map(\.trackingNumber)
+        let allTrackedItems = try await request.trackedItems.find(filter: .init(trackingNumbers: targetTrackedNumbers)).get()
+
+        return allItems.map {
+            $0.output(with: allTrackedItems)
+        }
     }
 
     private func deleteMultipleItemsHandler(request: Request) async throws -> HTTPResponseStatus {
@@ -70,29 +76,32 @@ struct BuyerTrackedItemController: RouteCollection {
 
         let query = BuyerTrackedItem.query(on: request.db)
             .filter(\.$buyer.$id == buyerID)
-            .join(parent: \.$trackedItem)
-            .with(\.$trackedItem)
             .sort(\.$createdAt, .descending)
 
         if let searchString = input.searchString {
-            query.filter(.sql(raw: "\(TrackedItem.schema).tracking_number"), .custom("ILIKE"), .bind("%\(searchString)"))
+            query.filter(.sql(raw: "\(BuyerTrackedItem.schema).tracking_number"), .custom("ILIKE"), .bind("%\(searchString)"))
         }
-        
-        
-        query.join(TrackedItemActiveState.self, on: \TrackedItemActiveState.$id == \TrackedItem.$id, method: .left)
-        
+
+        query
+            .join(BuyerTrackedItemLinkView.self, on: \BuyerTrackedItemLinkView.$buyerTrackedItem.$id == \BuyerTrackedItem.$id, method: .left)
+            .join(TrackedItem.self, on: \BuyerTrackedItemLinkView.$trackedItem.$id == \TrackedItem.$id, method: .left)
+            .join(TrackedItemActiveState.self, on: \TrackedItemActiveState.$id == \TrackedItem.$id, method: .left)
+
         if input.filteredStates.isEmpty {
             query.filter(.sql(raw: "\(TrackedItemActiveState.schema).state IS NULL"))
         } else {
             query.filter(TrackedItemActiveState.self, \.$state ~~ input.filteredStates)
         }
-        
 
         let page = try await query
             .paginate(for: request)
+        
+        let allOutput = try await page.items.asyncMap {
+            return try await $0.output(in: request.db)
+        }
 
         return .init(
-            items: page.items,
+            items: allOutput,
             metadata: .init(
                 page: page.metadata.page,
                 per: page.metadata.per,
@@ -110,82 +119,52 @@ struct BuyerTrackedItemController: RouteCollection {
 
         let input = try request.content.decode(RegisterMultipleTrackedItemInput.self)
 
-        let trackedItems = try await request
-            .trackedItems
-            .find(filter: .init(ids: input.trackedItemIDs))
+        let buyerTrackedItems = try await request
+            .buyerTrackedItems
+            .find(filter: .init(buyerID: buyerID, trackingNumbers: input.trackingNumbers))
             .get()
 
-        try await request.db.transaction { db in
-            try await trackedItems.asyncForEach { trackedItem in
-                try await buyer.$trackedItems.attachOverride(
-                    fromID: buyerID,
-                    trackedItem,
-                    method: .ifNotExists,
-                    on: db) { pivotItem in
-                        pivotItem.note = input.sharedNote ?? ""
-                    }
+        return try await request.db.transaction { transactionDB in
+            try await buyerTrackedItems.delete(on: transactionDB)
+            
+            let items = input.trackingNumbers.map {
+                return BuyerTrackedItem(
+                    note: input.sharedNote ?? "",
+                    buyerID: buyerID,
+                    trackingNumber: $0.trimmingCharacters(in: .whitespacesAndNewlines))
             }
+            
+            try await items.create(on: transactionDB)
+            return items
         }
-
-        let trackedItemIDs = trackedItems.compactMap(\.id)
-        return try await request.buyerTrackedItems
-            .find(filter: .init(buyerID: buyerID, trackedItemIDs: trackedItemIDs))
-            .get()
     }
 
-    private func searchForTrackingItemsHandler(request: Request) throws -> EventLoopFuture<[TrackedItem]> {
+    private func searchForTrackingItemsHandler(request: Request) async throws -> [TrackedItem] {
         guard let masterSellerID = request.application.masterSellerID else {
             throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
         }
 
         try SearchTrackedItemsInput.validate(content: request)
         let input = try request.content.decode(SearchTrackedItemsInput.self)
-        
+
         guard !input.validTrackingNumbers().isEmpty else {
-            return request.eventLoop.future([])
+            return []
         }
 
-        return request.trackedItems
+        let foundTrackedItems = try await request.trackedItems
             .find(filter: .init(searchStrings: input.validTrackingNumbers()))
-            .flatMap { foundTrackedItems -> EventLoopFuture<([TrackedItem], [TrackedItem])> in
-                let foundTrackingNumbers = foundTrackedItems.map(\.trackingNumber)
-                let notFoundItems = input.validTrackingNumbers().filter { trackingNumber in
-                    !foundTrackingNumbers.contains(where: { $0.hasSuffix(trackingNumber) })
-                }.map { trackingNumber in
-                    return TrackedItem.init(sellerID: masterSellerID, trackingNumber: trackingNumber, stateTrails: [], sellerNote: "", importIDs: [])
-                }
-
-                return request.trackedItems.create(notFoundItems)
-                    .transform(to: (notFoundItems, foundTrackedItems))
-            }.map { notFoundItems, foundTrackedItems in
-                var items = notFoundItems
-                items.append(contentsOf: foundTrackedItems)
-                return items
-            }
-    }
-
-    private func registerBuyerTrackedItemHandler(request: Request) throws -> EventLoopFuture<BuyerTrackedItem> {
-        let buyer = try request.auth.require(Buyer.self)
-        let buyerID = try buyer.requireID()
-
-        guard let trackedItemID: TrackedItem.IDValue = request.parameters.get(TrackedItem.parameter) else {
-            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
+            .get()
+    
+        let foundTrackingNumbers = foundTrackedItems.map(\.trackingNumber)
+        let notFoundItems = input.validTrackingNumbers().filter { trackingNumber in
+            !foundTrackingNumbers.contains(where: { $0.hasSuffix(trackingNumber) })
+        }.map { trackingNumber in
+            return TrackedItem.init(sellerID: masterSellerID, trackingNumber: trackingNumber, stateTrails: [], sellerNote: "", importIDs: [])
         }
-
-        return request
-            .trackedItems
-            .find(filter: .init(ids: [trackedItemID], limit: 1))
-            .first()
-            .unwrap(or: Abort(.badRequest, reason: "Yêu cầu không hợp lệ"))
-            .flatMap { trackedItem in
-                return buyer.$trackedItems.attach(trackedItem, method: .ifNotExists, on: request.db)
-                    .transform(to: trackedItem)
-            }.tryFlatMap { trackedItem in
-                let trackedItemID = try trackedItem.requireID()
-                return request.buyerTrackedItems.find(filter: .init(buyerID: buyerID, trackedItemIDs: [trackedItemID], limit: 1))
-                    .first()
-                    .unwrap(or: Abort(.badRequest, reason: "Yêu cầu không hợp lệ"))
-            }
+        
+        var items = notFoundItems
+        items.append(contentsOf: foundTrackedItems)
+        return items
     }
 
     private func updateBuyerTrackedItemHandler(request: Request) throws -> EventLoopFuture<BuyerTrackedItem> {

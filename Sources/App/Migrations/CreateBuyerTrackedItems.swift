@@ -8,10 +8,9 @@ struct CreateBuyerTrackedItems: Migration {
             .id()
             .field("note", .string, .required, .sql(raw: "DEFAULT ''"))
             .field("buyer_id", .uuid, .required, .references(Buyer.schema, "id"))
-            .field("tracked_item_id", .uuid, .required, .references(TrackedItem.schema, "id"))
+            .field("tracking_number", .string, .required)
             .field("created_at", .datetime)
             .field("updated_at", .datetime)
-            .unique(on: "buyer_id", "tracked_item_id")
             .create()
     }
 
