@@ -75,33 +75,16 @@ struct SellerTrackedItemController: RouteCollection {
             let buffer = request.body.data,
             let stateRaw = request.parameters.get("state", as: String.self),
             let state = TrackedItem.State(rawValue: stateRaw),
-            let fileNamePrefix = request.parameters.get("fileName", as: String.self)?.split(separator: ".").first
+            let fileName = request.parameters.get("fileName", as: String.self)
         else {
             throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
         }
-
-        var workPath = request.application.directory.workingDirectory
-        
-        if !workPath.hasSuffix("/") {
-            workPath += "/"
-        }
-        let uploadFolder = ""
-        
-        let fileName = String(fileNamePrefix + "-\(Date().toISODateTime()).csv")
-        let path = workPath + uploadFolder + fileName
-
-        let fileManager = FileManager()
-        if fileManager.fileExists(atPath: path) && fileManager.isDeletableFile(atPath: path) {
-            try fileManager.removeItem(atPath: path)
-        }
-        print("uploaded file at path", path)
-        
-        try await request.fileio.writeFile(buffer, at: path)
-
-        request.application.logger.info("Uploaded file at path \(path)")
-        print("uploaded file at path", path)
+        let file = File(data: buffer, filename: fileName)
+        let fileID = try await request.fileStorages.upload(file: file, to: "Ebay1991").get()
+        print("uploaded file at path", fileID)
         
         let newJob = TrackedItemUploadJob(
+            fileID: fileID,
             fileName: fileName,
             state: state,
             sellerID: masterSellerID
@@ -109,7 +92,7 @@ struct SellerTrackedItemController: RouteCollection {
 
         try await newJob.save(on: request.db)
         
-        let delayDate = Date().addingTimeInterval(5)
+        let delayDate = Date().addingTimeInterval(2)
         let dispatchPayload = try UpdateTrackedItemsPayload.init(jobID: newJob.requireID())
         try await request.queue.dispatch(
             UpdateTrackedItemsJob.self,

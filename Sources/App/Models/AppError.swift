@@ -7,6 +7,7 @@ enum AppError: String, Error {
     case confirmPasswordDoesntMatch
     case buyerNotVerified
     case uploadJobNotFound
+    case uploadFileNotFound
 }
 
 extension AppError: AbortError {

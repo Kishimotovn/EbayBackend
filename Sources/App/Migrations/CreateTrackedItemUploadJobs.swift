@@ -6,6 +6,7 @@ struct CreateTrackedItemUploadJobs: AsyncMigration {
     func prepare(on database: Database) async throws {
         try await database.schema(TrackedItemUploadJob.schema)
             .id()
+            .field("file_id", .string, .required)
             .field("file_name", .string, .required)
             .field("created_at", .datetime)
             .field("updated_at", .datetime)

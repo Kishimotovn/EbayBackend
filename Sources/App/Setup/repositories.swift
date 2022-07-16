@@ -87,6 +87,9 @@ public func setupRepositories(app: Application) throws {
     app.buyerTrackedItems.use {
         DatabaseBuyerTrackedItemRepository(db: $0.db)
     }
+    app.fileStorages.use{ req in
+        AzureStorageRepository(client: req.client, logger: req.logger, storageName: req.application.azureStorageName ?? "", accessKey: req.application.azureStorageKey ?? "")
+    }
 
     app.ebayAppID = Environment.process.EBAY_APP_ID
     app.ebayAppSecret = Environment.process.EBAY_APP_SECRET
@@ -95,6 +98,8 @@ public func setupRepositories(app: Application) throws {
     app.notificationEmails = (Environment.process.NOTIFICATION_EMAILS ?? "minhdung910@gmail.com,chonusebay@gmail.com").components(separatedBy: ",")
     app.updateSellerBatchCount = Int(Environment.process.UPDATE_SELLER_BATCH_COUNT ?? "") ?? 2
     app.ipadScanInterval = Int(Environment.process.IPAD_SCAN_INTERVAL ?? "") ?? 5
+    app.azureStorageName = Environment.process.AZURE_STORAGE_NAME
+    app.azureStorageKey = Environment.process.AZURE_STORAGE_ACCESS_KEY
 
     if (Environment.process.SENDGRID_API_KEY != nil) {
         app.sendgrid.initialize()

@@ -20,29 +20,23 @@ struct UpdateTrackedItemsJob: AsyncJob {
         let start = Date()
 
         guard
-            let job = try await TrackedItemUploadJob.query(on: db).filter(\.$id == jobID).first()
+            let job = try await TrackedItemUploadJob.query(on: db).filter(\.$id == jobID).first(),
+            !job.fileID.isEmpty
         else {
             throw AppError.uploadJobNotFound
         }
         
-        let fileName = job.fileName
-        var workPath = context.application.directory.workingDirectory
-        
-        if !workPath.hasSuffix("/") {
-            workPath += "/"
+        let fileStorage = AzureStorageRepository(
+            client: context.application.client,
+            logger: context.application.logger,
+            storageName: context.application.azureStorageName ?? "",
+            accessKey: context.application.azureStorageKey ?? "")
+
+        let file = try await fileStorage.get(name: job.fileID, folder: "Ebay1991").get()
+        guard let buffer = file.body else{
+            throw AppError.uploadFileNotFound
         }
-        let uploadFolder = ""
-        
-        let path = workPath + uploadFolder + fileName
-        
-        
-        context.application.logger.info("Reading file file at path \(path)")
-        
-        let buffer = try await self.collectFile(
-            io: context.application.fileio,
-            allocator: context.application.allocator,
-            eventLoop: context.application.eventLoopGroup.next(),
-            at: path)
+
         let data = Data(buffer: buffer)
 
         let reader = try CSVReader(input: data) {
@@ -168,11 +162,7 @@ struct UpdateTrackedItemsJob: AsyncJob {
                 total: $0.value)
         }
         try await job.save(on: db)
-        
-        let fileManager = FileManager()
-        if fileManager.fileExists(atPath: path) && fileManager.isDeletableFile(atPath: path) {
-            try fileManager.removeItem(atPath: path)
-        }
+        try await fileStorage.delete(name: job.fileID, folder: "Ebay1991").get()
     }
 
     public func collectFile(

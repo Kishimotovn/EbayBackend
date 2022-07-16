@@ -8,6 +8,9 @@ final class TrackedItemUploadJob: Model, Content {
     @ID(key: .id)
     var id: UUID?
 
+    @Field(key: "file_id")
+    var fileID: String
+
     @Field(key: "file_name")
     var fileName: String
 
@@ -42,10 +45,12 @@ final class TrackedItemUploadJob: Model, Content {
     init() { }
     
     init(
+        fileID: String,
         fileName: String,
         state: TrackedItem.State,
         sellerID: Seller.IDValue
     ) {
+        self.fileID = fileID
         self.fileName = fileName
         self.totals = []
         self.state = state
