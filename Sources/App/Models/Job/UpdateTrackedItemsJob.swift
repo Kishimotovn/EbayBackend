@@ -49,7 +49,7 @@ struct UpdateTrackedItemsJob: AsyncJob {
         let data = Data(buffer: buffer)
 
         let reader = try CSVReader(input: data) {
-            $0.headerStrategy = .firstLine
+            $0.headerStrategy = .none
             $0.presample = false
             $0.escapingStrategy = .doubleQuote
             $0.delimiters.row = "\r\n"
@@ -189,6 +189,7 @@ struct UpdateTrackedItemsJob: AsyncJob {
 
     private func date(from string: String, using dateFormatter: DateFormatter) -> Date? {
         let formats = [
+            "yyyy-MM-dd",
             "yyyy-MM-dd' 'HH:mm:ss",
             "MM/dd-HH:mm:ss",
             "MM/dd",
