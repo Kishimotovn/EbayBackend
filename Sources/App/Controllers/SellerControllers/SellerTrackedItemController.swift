@@ -19,7 +19,7 @@ struct SellerTrackedItemController: RouteCollection {
         groupedRoutes.get("search", use: searchForTrackingItemsHandler)
         groupedRoutes.post(use: createHandler)
         groupedRoutes.post("multiple", use: createMultipleHandler)
-        groupedRoutes.on(.POST, "uploadByState", ":state", ":fileName", body: .collect(maxSize: "50mb"), use: uploadByStateHandler)
+        groupedRoutes.on(.POST, "uploadByState", ":state", body: .collect(maxSize: "50mb"), use: uploadByStateHandler)
         groupedRoutes.get("uploadJobs", use: getUploadJobsHandler)
     }
 
@@ -72,21 +72,27 @@ struct SellerTrackedItemController: RouteCollection {
     private func uploadByStateHandler(request: Request) async throws -> TrackedItemUploadJob {
         guard
             let masterSellerID = request.application.masterSellerID,
-            let buffer = request.body.data,
             let stateRaw = request.parameters.get("state", as: String.self),
-            let state = TrackedItem.State(rawValue: stateRaw),
-            let fileName = request.parameters.get("fileName", as: String.self)
+            let state = TrackedItem.State(rawValue: stateRaw)
         else {
             throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
         }
-        let file = File(data: buffer, filename: fileName)
+
+        struct Input: Codable {
+            var uploadFile: File
+        }
+        
+        let input = try request.content.decode(Input.self)
+        var file = input.uploadFile
+        let fileName = file.filename.folding(options: .diacriticInsensitive, locale: .current)
+        file.filename = fileName
         let fileID = try await request.fileStorages.upload(file: file, to: "Ebay1991").get()
         print("uploaded file at path", fileID)
         
         let newJob = TrackedItemUploadJob(
             fileID: fileID,
             jobState: .pending,
-            fileName: fileName,
+            fileName: file.filename,
             state: state,
             sellerID: masterSellerID
         )
