@@ -85,6 +85,7 @@ struct SellerTrackedItemController: RouteCollection {
         
         let newJob = TrackedItemUploadJob(
             fileID: fileID,
+            jobState: .pending,
             fileName: fileName,
             state: state,
             sellerID: masterSellerID
@@ -93,7 +94,7 @@ struct SellerTrackedItemController: RouteCollection {
         try await newJob.save(on: request.db)
         
         let delayDate = Date().addingTimeInterval(2)
-        let dispatchPayload = try UpdateTrackedItemsPayload.init(jobID: newJob.requireID())
+        let dispatchPayload = UpdateTrackedItemJobPayload.init()
         try await request.queue.dispatch(
             UpdateTrackedItemsJob.self,
             dispatchPayload,

@@ -36,6 +36,16 @@ final class TrackedItemUploadJob: Model, Content {
     @Field(key: "state")
     var state: TrackedItem.State
 
+    enum State: String, Codable {
+        case pending
+        case running
+        case error
+        case finished
+    }
+
+    @Field(key: "job_state")
+    var jobState: State
+
     @Parent(key: "seller_id")
     var seller: Seller
 
@@ -46,12 +56,14 @@ final class TrackedItemUploadJob: Model, Content {
     
     init(
         fileID: String,
+        jobState: State,
         fileName: String,
         state: TrackedItem.State,
         sellerID: Seller.IDValue
     ) {
         self.fileID = fileID
         self.fileName = fileName
+        self.jobState = jobState
         self.totals = []
         self.state = state
         self.$seller.id = sellerID

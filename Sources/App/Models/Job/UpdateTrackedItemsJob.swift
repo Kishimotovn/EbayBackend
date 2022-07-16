@@ -6,26 +6,35 @@ import SendGrid
 import CodableCSV
 import NIOCore
 
-struct UpdateTrackedItemsPayload: Codable {
-    var jobID: TrackedItemUploadJob.IDValue
+struct UpdateTrackedItemJobPayload: Codable {
+    var name: String?
 }
 
 struct UpdateTrackedItemsJob: AsyncJob {
-    typealias Payload = UpdateTrackedItemsPayload
+    typealias Payload = UpdateTrackedItemJobPayload
     
     func dequeue(_ context: QueueContext, _ payload: Payload) async throws {
-        let jobID = payload.jobID
         let db = context.application.db
         
         let start = Date()
+        
+        guard try await TrackedItemUploadJob.query(on: db)
+            .filter(\.$jobState == .running)
+            .first() == nil
+        else {
+            return
+        }
 
         guard
-            let job = try await TrackedItemUploadJob.query(on: db).filter(\.$id == jobID).first(),
+            let job = try await TrackedItemUploadJob.query(on: db).filter(\.$jobState == .pending).sort(\.$createdAt, .ascending).first(),
             !job.fileID.isEmpty
         else {
-            throw AppError.uploadJobNotFound
+            return
         }
         
+        job.jobState = .running
+        try await job.save(on: db)
+
         let fileStorage = AzureStorageRepository(
             client: context.application.client,
             logger: context.application.logger,
@@ -161,82 +170,12 @@ struct UpdateTrackedItemsJob: AsyncJob {
                 date: date,
                 total: $0.value)
         }
+        job.jobState = .finished
         try await job.save(on: db)
         try await fileStorage.delete(name: job.fileID, folder: "Ebay1991").get()
-    }
-
-    public func collectFile(
-        io: NonBlockingFileIO,
-        allocator: ByteBufferAllocator,
-        eventLoop: EventLoop,
-        at path: String
-    ) async throws -> ByteBuffer {
-        var data = allocator.buffer(capacity: 0)
-        try await self.readFile(io: io, allocator: allocator, eventLoop: eventLoop, at: path) { new in
-            var new = new
-            data.writeBuffer(&new)
-        }
-        return data
-    }
-
-    
-    private func readFile(
-        io: NonBlockingFileIO,
-        allocator: ByteBufferAllocator,
-        eventLoop: EventLoop,
-        at path: String,
-        chunkSize: Int = NonBlockingFileIO.defaultChunkSize,
-        onRead: @escaping (ByteBuffer) async throws -> Void
-    ) async throws {
-        guard
-            let attributes = try? FileManager.default.attributesOfItem(atPath: path),
-            let fileSize = attributes[.size] as? NSNumber
-        else {
-           throw Abort(.internalServerError)
-        }
-
-        try await self.read(
-            io: io,
-            allocator: allocator,
-            eventLoop: eventLoop,
-            path: path,
-            fromOffset: 0,
-            byteCount:
-            fileSize.intValue,
-            chunkSize: chunkSize,
-            onRead: onRead
-        )
-    }
-
-    private func read(
-        io: NonBlockingFileIO,
-        allocator: ByteBufferAllocator,
-        eventLoop: EventLoop,
-        path: String,
-        fromOffset offset: Int64,
-        byteCount: Int,
-        chunkSize: Int,
-        onRead: @escaping (ByteBuffer) async throws -> Void
-    ) async throws {
-        let fd = try NIOFileHandle(path: path)
-        let done = io.readChunked(
-            fileHandle: fd,
-            fromOffset: offset,
-            byteCount: byteCount,
-            chunkSize: chunkSize,
-            allocator: allocator,
-            eventLoop: eventLoop
-        ) { chunk in
-            let promise = eventLoop.makePromise(of: Void.self)
-            promise.completeWithTask {
-                try await onRead(chunk)
-            }
-            return promise.futureResult
-        }
-        done.whenComplete { _ in
-            try? fd.close()
-        }
-        try await done.get()
+        
+        let payload = UpdateTrackedItemJobPayload()
+        try await context.queue.dispatch(UpdateTrackedItemsJob.self, payload)
     }
 
     private func date(from string: String, using dateFormatter: DateFormatter) -> Date? {
@@ -267,32 +206,20 @@ struct UpdateTrackedItemsJob: AsyncJob {
         return nil
     }
     
-    func error(_ context: QueueContext, _ error: Error, _ payload: UpdateTrackedItemsPayload) async throws {
-        print("error", error)
-        let jobID = payload.jobID
+    func error(_ context: QueueContext, _ error: Error, _ payload: Payload) async throws {
         let db = context.application.db
 
         guard
-            let job = try await TrackedItemUploadJob.query(on: db).filter(\.$id == jobID).first()
+            let job = try await TrackedItemUploadJob.query(on: db).filter(\.$jobState == .running).first()
         else {
             return
         }
         
         job.error = error.localizedDescription
+        job.jobState = .error
         try await job.save(on: db)
         
-        let fileName = job.fileName
-        var workPath = context.application.directory.workingDirectory
-        
-        if !workPath.hasSuffix("/") {
-            workPath += "/"
-        }
-        let uploadFolder = ""
-        let path = workPath + uploadFolder + fileName
-
-//        let fileManager = FileManager()
-//        if fileManager.fileExists(atPath: path) && fileManager.isDeletableFile(atPath: path) {
-//            try fileManager.removeItem(atPath: path)
-//        }
+        let payload = UpdateTrackedItemJobPayload()
+        try await context.queue.dispatch(UpdateTrackedItemsJob.self, payload)
     }
 }
