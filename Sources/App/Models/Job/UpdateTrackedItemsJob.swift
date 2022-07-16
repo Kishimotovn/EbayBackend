@@ -52,6 +52,7 @@ struct UpdateTrackedItemsJob: AsyncJob {
             $0.headerStrategy = .firstLine
             $0.presample = false
             $0.escapingStrategy = .doubleQuote
+            $0.delimiters.row = "\r\n"
         }
         
         let dateFormatter = DateFormatter()
@@ -75,8 +76,15 @@ struct UpdateTrackedItemsJob: AsyncJob {
             countByDate[date] = (countByDate[date] ?? 0) + 1
 
             let currentTrackingNumbers = rows.map(\.0)
-
-            if !currentTrackingNumbers.contains(trackingNumber) {
+            
+            if (trackingNumber.contains("\n")) {
+                let trackingNumbers = trackingNumber.components(separatedBy: "\n")
+                for number in trackingNumbers {
+                   if !currentTrackingNumbers.contains(number) {
+                       rows.append((number, datetime))
+                   }
+                }
+            } else if !currentTrackingNumbers.contains(trackingNumber) {
                 rows.append((trackingNumber, datetime))
             }
         }

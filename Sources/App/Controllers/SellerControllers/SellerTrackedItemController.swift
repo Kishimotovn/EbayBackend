@@ -84,11 +84,26 @@ struct SellerTrackedItemController: RouteCollection {
         
         let input = try request.content.decode(Input.self)
         var file = input.uploadFile
+
+        let data = Data(buffer: file.data)
+        
+        let string = String(buffer: file.data)
+        print(string)
+
+        let reader = try CSVReader(input: data) {
+            $0.headerStrategy = .none
+            $0.presample = false
+            $0.escapingStrategy = .doubleQuote
+            $0.delimiters.row = "\r\n"
+        }
+
+        while let row = try reader.readRow() { }
+
         let fileName = file.filename.folding(options: .diacriticInsensitive, locale: .current)
         file.filename = fileName
         let fileID = try await request.fileStorages.upload(file: file, to: "Ebay1991").get()
         print("uploaded file at path", fileID)
-        
+
         let newJob = TrackedItemUploadJob(
             fileID: fileID,
             jobState: .pending,
@@ -99,12 +114,10 @@ struct SellerTrackedItemController: RouteCollection {
 
         try await newJob.save(on: request.db)
         
-        let delayDate = Date().addingTimeInterval(2)
         let dispatchPayload = UpdateTrackedItemJobPayload.init()
         try await request.queue.dispatch(
             UpdateTrackedItemsJob.self,
-            dispatchPayload,
-            delayUntil: delayDate)
+            dispatchPayload)
         
         return newJob
     }

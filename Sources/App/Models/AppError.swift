@@ -1,5 +1,6 @@
 import Foundation
 import Vapor
+import CodableCSV
 
 enum AppError: String, Error {
     case acccessTokenExpired
@@ -22,5 +23,15 @@ extension AppError: AbortError {
         default:
             return .badRequest
         }
+    }
+}
+
+extension CSVError: AbortError {
+    public var reason: String {
+        return "\(self)"
+    }
+
+    public var status: HTTPResponseStatus {
+        return .badRequest
     }
 }
