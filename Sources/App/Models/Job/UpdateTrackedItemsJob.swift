@@ -51,6 +51,7 @@ struct UpdateTrackedItemsJob: AsyncJob {
         let reader = try CSVReader(input: data) {
             $0.headerStrategy = .firstLine
             $0.presample = false
+            $0.escapingStrategy = .doubleQuote
         }
         
         let dateFormatter = DateFormatter()
@@ -215,7 +216,7 @@ struct UpdateTrackedItemsJob: AsyncJob {
             return
         }
         
-        job.error = error.localizedDescription
+        job.error = "\(error)"
         job.jobState = .error
         try await job.save(on: db)
         
