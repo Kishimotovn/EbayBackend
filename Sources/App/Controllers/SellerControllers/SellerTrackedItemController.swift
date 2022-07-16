@@ -75,7 +75,7 @@ struct SellerTrackedItemController: RouteCollection {
             let buffer = request.body.data,
             let stateRaw = request.parameters.get("state", as: String.self),
             let state = TrackedItem.State(rawValue: stateRaw),
-            let fileNamePrefix = request.parameters.get("fileName", as: String.self)
+            let fileNamePrefix = request.parameters.get("fileName", as: String.self)?.split(separator: ".").first
         else {
             throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
         }
@@ -83,13 +83,8 @@ struct SellerTrackedItemController: RouteCollection {
         let workPath = request.application.directory.workingDirectory
         let uploadFolder = "CSVUploads/"
         
-        let fileName = fileNamePrefix + "-\(Date().toISODateTime()).csv"
+        let fileName = String(fileNamePrefix + "-\(Date().toISODateTime()).csv")
         let path = workPath + uploadFolder + fileName
-
-        let fileManager = FileManager()
-        if fileManager.fileExists(atPath: path) && fileManager.isDeletableFile(atPath: path) {
-            try fileManager.removeItem(atPath: path)
-        }
         print("uploaded file at path", path)
         
         try await request.fileio.writeFile(buffer, at: path)

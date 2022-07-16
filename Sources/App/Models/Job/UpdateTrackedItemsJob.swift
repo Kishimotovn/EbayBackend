@@ -164,11 +164,6 @@ struct UpdateTrackedItemsJob: AsyncJob {
                 total: $0.value)
         }
         try await job.save(on: db)
-        
-        let fileManager = FileManager()
-        if fileManager.fileExists(atPath: path) && fileManager.isDeletableFile(atPath: path) {
-            try fileManager.removeItem(atPath: path)
-        }
     }
 
     public func collectFile(
