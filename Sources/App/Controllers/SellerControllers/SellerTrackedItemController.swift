@@ -85,6 +85,11 @@ struct SellerTrackedItemController: RouteCollection {
         
         let fileName = String(fileNamePrefix + "-\(Date().toISODateTime()).csv")
         let path = workPath + uploadFolder + fileName
+
+        let fileManager = FileManager()
+        if fileManager.fileExists(atPath: path) && fileManager.isDeletableFile(atPath: path) {
+            try fileManager.removeItem(atPath: path)
+        }
         print("uploaded file at path", path)
         
         try await request.fileio.writeFile(buffer, at: path)
@@ -100,8 +105,12 @@ struct SellerTrackedItemController: RouteCollection {
 
         try await newJob.save(on: request.db)
         
+        let delayDate = Date().addingTimeInterval(5)
         let dispatchPayload = try UpdateTrackedItemsPayload.init(jobID: newJob.requireID())
-        try await request.queue.dispatch(UpdateTrackedItemsJob.self, dispatchPayload)
+        try await request.queue.dispatch(
+            UpdateTrackedItemsJob.self,
+            dispatchPayload,
+            delayUntil: delayDate)
         
         return newJob
     }
