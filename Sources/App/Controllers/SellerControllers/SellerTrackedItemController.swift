@@ -80,8 +80,12 @@ struct SellerTrackedItemController: RouteCollection {
             throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
         }
 
-        let workPath = request.application.directory.workingDirectory
-        let uploadFolder = "CSVUploads/"
+        var workPath = request.application.directory.workingDirectory
+        
+        if !workPath.hasSuffix("/") {
+            workPath += "/"
+        }
+        let uploadFolder = ""
         
         let fileName = String(fileNamePrefix + "-\(Date().toISODateTime()).csv")
         let path = workPath + uploadFolder + fileName

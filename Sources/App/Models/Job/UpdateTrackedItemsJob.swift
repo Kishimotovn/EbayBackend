@@ -26,8 +26,12 @@ struct UpdateTrackedItemsJob: AsyncJob {
         }
         
         let fileName = job.fileName
-        let workPath = context.application.directory.workingDirectory
-        let uploadFolder = "CSVUploads/"
+        var workPath = context.application.directory.workingDirectory
+        
+        if !workPath.hasSuffix("/") {
+            workPath += "/"
+        }
+        let uploadFolder = ""
         
         let path = workPath + uploadFolder + fileName
         
@@ -288,8 +292,12 @@ struct UpdateTrackedItemsJob: AsyncJob {
         try await job.save(on: db)
         
         let fileName = job.fileName
-        let workPath = context.application.directory.workingDirectory
-        let uploadFolder = "CSVUploads/"
+        var workPath = context.application.directory.workingDirectory
+        
+        if !workPath.hasSuffix("/") {
+            workPath += "/"
+        }
+        let uploadFolder = ""
         let path = workPath + uploadFolder + fileName
 
 //        let fileManager = FileManager()
