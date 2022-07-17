@@ -5,6 +5,7 @@ import Queues
 import SendGrid
 import CodableCSV
 import NIOCore
+import SQLKit
 
 struct UpdateTrackedItemJobPayload: Codable {
     var name: String?
@@ -165,6 +166,10 @@ struct UpdateTrackedItemsJob: AsyncJob {
 
             return updateResults
         }
+        
+        try await (context.application.db as? SQLDatabase)?.raw("""
+        REFRESH MATERIALIZED VIEW CONCURRENTLY \(raw: BuyerTrackedItemLinkView.schema);
+        """).run()
 
         let stateChangedItems = results.filter(\.1).map(\.0)
 
