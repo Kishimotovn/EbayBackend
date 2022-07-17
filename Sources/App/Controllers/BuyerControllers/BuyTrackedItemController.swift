@@ -91,6 +91,7 @@ struct BuyerTrackedItemController: RouteCollection {
             query.filter(.sql(raw: "\(TrackedItemActiveState.schema).state IS NULL"))
         } else {
             query.filter(TrackedItemActiveState.self, \.$state ~~ input.filteredStates)
+                .with(\.$trackedItems)
         }
 
         let page = try await query
