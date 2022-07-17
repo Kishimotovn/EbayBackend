@@ -79,7 +79,7 @@ struct BuyerTrackedItemController: RouteCollection {
             .sort(\.$createdAt, .descending)
 
         if let searchString = input.searchString {
-            query.filter(.sql(raw: "\(BuyerTrackedItem.schema).tracking_number"), .custom("ILIKE"), .bind("%\(searchString)"))
+            query.filter(.sql(raw: "\(BuyerTrackedItem.schema).tracking_number"), .custom("~*"), .bind("^.*(\(searchString))$"))
         }
 
         query
@@ -100,7 +100,7 @@ struct BuyerTrackedItemController: RouteCollection {
         let allOutput: [BuyerTrackedItemOutput]
         
         if input.filteredStates.isEmpty {
-            allOutput = try await page.items.map {
+            allOutput = page.items.map {
                 $0.output(with: nil)
             }
         } else {

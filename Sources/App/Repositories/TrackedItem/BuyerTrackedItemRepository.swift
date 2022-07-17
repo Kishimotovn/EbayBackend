@@ -54,9 +54,9 @@ struct DatabaseBuyerTrackedItemRepository: BuyerTrackedItemRepository, DatabaseR
                 trackingNumbers.forEach { number in
                     builder.filter(.sql(raw: "'\(number)'::text ILIKE CONCAT('%',\(BuyerTrackedItem.schema).tracking_number)"))
                 }
-                trackingNumbers.forEach { number in
-                    builder.filter(.sql(raw: "\(BuyerTrackedItem.schema).tracking_number"), .custom("ILIKE"), .bind("%\(number)"))
-                }
+                let regexSuffixGroup = trackingNumbers.joined(separator: "|")
+                let fullRegex = "^.*(\(regexSuffixGroup))$"
+                builder.filter(.sql(raw: "\(BuyerTrackedItem.schema).tracking_number"), .custom("~*"), .bind(fullRegex))
             }
         }
         if let limit = filter.limit {

@@ -15,7 +15,7 @@ struct CreateBuyerTrackedItemLinkingView: AsyncMigration {
         select gen_random_uuid () as "id", bti.id as "buyer_tracked_item_id", bti.tracking_number as "buyer_tracking_number", ti.id as "tracked_item_id", ti.tracking_number as "tracked_item_tracking_number"
         from buyer_tracked_items bti
         left join tracked_items ti
-        on ti.tracking_number ILIKE concat('%', bti.tracking_number);
+        on ti.tracking_number ~* concat('^.*(', bti.tracking_number, ')$');
         """).get()
 
         try await sqlDB.simpleQuery("""
