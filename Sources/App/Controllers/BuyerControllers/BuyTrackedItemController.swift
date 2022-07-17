@@ -79,7 +79,6 @@ struct BuyerTrackedItemController: RouteCollection {
 
         let query = BuyerTrackedItem.query(on: request.db)
             .filter(\.$buyer.$id == buyerID)
-            .sort(\.$createdAt, .descending)
 
         if let searchString = input.searchString {
             query.filter(.sql(raw: "\(BuyerTrackedItem.schema).tracking_number"), .custom("~*"), .bind("^.*(\(searchString))$"))
