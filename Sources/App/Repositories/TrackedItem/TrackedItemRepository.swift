@@ -69,8 +69,9 @@ struct DatabaseTrackedItemRepository: TrackedItemRepository, DatabaseRepository 
             }
         }
         if let searchStrings = filter.searchStrings, !searchStrings.isEmpty {
-            let regexString = searchStrings.joined(separator: "|")
-            query.filter(.sql(raw: "\(TrackedItem.schema).tracking_number"), .custom("~*"), .bind(regexString))
+            let regexSuffixGroup = searchStrings.joined(separator: "|")
+            let fullRegex = "^.*(\(regexSuffixGroup))$"
+            query.filter(.sql(raw: "\(TrackedItem.schema).tracking_number"), .custom("~*"), .bind(fullRegex))
         }
         if let dateRange = filter.dateRange {
             query.filter(.sql(raw: "\(TrackedItem.schema).created_at::DATE"), .greaterThanOrEqual, .bind(dateRange.start))
