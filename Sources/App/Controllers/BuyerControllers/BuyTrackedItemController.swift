@@ -97,8 +97,16 @@ struct BuyerTrackedItemController: RouteCollection {
         let page = try await query
             .paginate(for: request)
         
-        let allOutput = try await page.items.asyncMap {
-            return try await $0.output(in: request.db)
+        let allOutput: [BuyerTrackedItemOutput]
+        
+        if input.filteredStates.isEmpty {
+            allOutput = try await page.items.map {
+                $0.output(with: nil)
+            }
+        } else {
+            allOutput = try await page.items.asyncMap {
+                return try await $0.output(in: request.db)
+            }
         }
 
         return .init(
