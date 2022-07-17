@@ -9,6 +9,7 @@ import Foundation
 import Vapor
 import Fluent
 import FluentKit
+import SQLKit
 
 struct TrackedItemFilter {
     var ids: [TrackedItem.IDValue]? = nil
@@ -68,11 +69,8 @@ struct DatabaseTrackedItemRepository: TrackedItemRepository, DatabaseRepository 
             }
         }
         if let searchStrings = filter.searchStrings, !searchStrings.isEmpty {
-            query.group(.or) { builder in
-                searchStrings.forEach { searchString in
-                    builder.filter(.sql(raw: "\(TrackedItem.schema).tracking_number"), .custom("ILIKE"), .bind("%\(searchString)"))
-                }
-            }
+            let regexString = searchStrings.joined(separator: "|")
+            query.filter(.sql(raw: "\(TrackedItem.schema).tracking_number"), .custom("~*"), .bind(regexString))
         }
         if let dateRange = filter.dateRange {
             query.filter(.sql(raw: "\(TrackedItem.schema).created_at::DATE"), .greaterThanOrEqual, .bind(dateRange.start))
