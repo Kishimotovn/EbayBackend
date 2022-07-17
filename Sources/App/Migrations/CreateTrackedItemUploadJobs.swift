@@ -14,6 +14,7 @@ struct CreateTrackedItemUploadJobs: AsyncMigration {
             .field("job_state", .string, .required)
             .field("state", .string, .required)
             .field("seller_id", .uuid, .required, .references(Seller.schema, "id"))
+            .field("import_id", .string)
             .field("error", .string)
             .create()
     }

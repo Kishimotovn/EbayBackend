@@ -21,11 +21,80 @@ struct SellerTrackedItemController: RouteCollection {
         groupedRoutes.post("multiple", use: createMultipleHandler)
         groupedRoutes.on(.POST, "uploadByState", ":state", body: .collect(maxSize: "50mb"), use: uploadByStateHandler)
         groupedRoutes.get("uploadJobs", use: getUploadJobsHandler)
+        groupedRoutes.delete("revertJob", TrackedItemUploadJob.parameterPath, use: revertUploadJobsHandler)
     }
 
     struct UploadTrackedItemsByDayOutput: Content {
         var totalCount: Int
         var countByDate: [String: Int]
+    }
+
+    private func revertUploadJobsHandler(request: Request) async throws -> TrackedItemUploadJob {
+        guard let jobID = request.parameters.get(TrackedItemUploadJob.parameter, as: TrackedItemUploadJob.IDValue.self) else {
+            throw AppError.uploadJobNotFound
+        }
+
+        guard let job = try await TrackedItemUploadJob.query(on: request.db)
+            .filter(\.$id == jobID)
+            .first()
+        else {
+            throw AppError.uploadJobNotFound
+        }
+
+        if job.jobState == .pending || job.jobState == .error {
+            if job.jobState == .pending {
+                try? await request.fileStorages.delete(name: job.fileID, folder: "Ebay1991").get()
+            }
+            try await job.delete(on: request.db)
+            return job
+        }
+
+        if job.jobState == .running {
+            throw AppError.uploadJobNotFound
+        }
+
+        let runningJob = try await TrackedItemUploadJob.query(on: request.db)
+            .filter(\.$jobState == .running)
+            .first()
+
+        guard runningJob == nil else {
+            throw AppError.uploadJobRunning
+        }
+
+        guard job.jobState == .finished, let importID = job.importID else {
+            throw AppError.uploadJobNotFound
+        }
+
+        try await request.db.transaction { db in
+            let allTrackedItems = try await TrackedItem.query(on: db)
+                .filter(.sql(raw: "'\(importID)'=ANY(import_ids)"))
+                .all()
+
+            allTrackedItems.forEach { trackedItem in
+                trackedItem.stateTrails = trackedItem.stateTrails.filter {
+                    $0.importID != importID
+                }
+                trackedItem.importIDs.removeAll(where: { $0 == importID })
+            }
+
+            let groups = Dictionary(grouping: allTrackedItems) { $0.stateTrails.isEmpty }
+            let allUpdatingItems = groups[false] ?? []
+            let allDeletingItems = groups[true] ?? []
+
+            if !allUpdatingItems.isEmpty {
+                try await allUpdatingItems.asyncForEach { trackedItem in
+                    try await trackedItem.save(on: db)
+                }
+            }
+            
+            if !allDeletingItems.isEmpty {
+                try await allDeletingItems.delete(on: db)
+            }
+            
+            try await job.delete(on: db)
+        }
+
+        return job
     }
 
     private func getUploadJobsHandler(request: Request) async throws -> Page<TrackedItemUploadJob> {

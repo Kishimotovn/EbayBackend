@@ -59,7 +59,7 @@ struct UpdateTrackedItemsJob: AsyncJob {
         let dateFormatter = DateFormatter()
 
         var countByDate: [String: Int] = [:]
-        let importID = "csv-\(job.state)-\(Date().toISODateTime())"
+        let importID = "csv-\(job.fileName)-\(job.state)-\(Date().toISODateTime())"
 
         var rows: [(String, Date)] = []
 
@@ -185,6 +185,7 @@ struct UpdateTrackedItemsJob: AsyncJob {
                 total: $0.value)
         }
         job.jobState = .finished
+        job.importID = importID
         try await job.save(on: db)
         try await fileStorage.delete(name: job.fileID, folder: "Ebay1991").get()
         
@@ -233,6 +234,14 @@ struct UpdateTrackedItemsJob: AsyncJob {
         job.error = "\(error)"
         job.jobState = .error
         try await job.save(on: db)
+        
+        let fileStorage = AzureStorageRepository(
+            client: context.application.client,
+            logger: context.application.logger,
+            storageName: context.application.azureStorageName ?? "",
+            accessKey: context.application.azureStorageKey ?? "")
+
+        try await fileStorage.delete(name: job.fileID, folder: "Ebay1991").get()
         
         let payload = UpdateTrackedItemJobPayload()
         try await context.queue.dispatch(UpdateTrackedItemsJob.self, payload)

@@ -163,7 +163,7 @@ struct BuyerTrackedItemController: RouteCollection {
         let foundTrackedItems = try await request.trackedItems
             .find(filter: .init(searchStrings: input.validTrackingNumbers()))
             .get()
-    
+
         let foundTrackingNumbers = foundTrackedItems.map(\.trackingNumber)
         let notFoundItems = input.validTrackingNumbers().filter { trackingNumber in
             !foundTrackingNumbers.contains(where: { $0.hasSuffix(trackingNumber) })

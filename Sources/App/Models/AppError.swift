@@ -9,6 +9,7 @@ enum AppError: String, Error {
     case buyerNotVerified
     case uploadJobNotFound
     case uploadFileNotFound
+    case uploadJobRunning
 }
 
 extension AppError: AbortError {

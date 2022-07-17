@@ -52,6 +52,9 @@ final class TrackedItemUploadJob: Model, Content {
     @OptionalField(key: "error")
     var error: String?
 
+    @OptionalField(key: "import_id")
+    var importID: String?
+
     init() { }
     
     init(
@@ -69,3 +72,5 @@ final class TrackedItemUploadJob: Model, Content {
         self.$seller.id = sellerID
     }
 }
+
+extension TrackedItemUploadJob: Parameter { }
