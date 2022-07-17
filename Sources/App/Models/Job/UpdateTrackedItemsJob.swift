@@ -174,6 +174,9 @@ struct UpdateTrackedItemsJob: AsyncJob {
         let stateChangedItems = results.filter(\.1).map(\.0)
 
         if !stateChangedItems.isEmpty {
+            try await (context.application.db as? SQLDatabase)?.raw("""
+            REFRESH MATERIALIZED VIEW CONCURRENTLY \(TrackedItemActiveState.schema);
+            """).run()
             let emailRepo = SendGridEmailRepository(appFrontendURL: context.application.appFrontendURL ?? "", queue: context.queue, db: context.application.db, eventLoop: context.eventLoop)
             try await emailRepo.sendTrackedItemsUpdateEmail(for: stateChangedItems).get()
         }

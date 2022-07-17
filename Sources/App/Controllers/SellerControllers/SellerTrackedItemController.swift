@@ -9,6 +9,7 @@ import Foundation
 import Vapor
 import Fluent
 import CodableCSV
+import SQLKit
 
 struct SellerTrackedItemController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
@@ -92,6 +93,12 @@ struct SellerTrackedItemController: RouteCollection {
             }
             
             try await job.delete(on: db)
+            try await (db as? SQLDatabase)?.raw("""
+            REFRESH MATERIALIZED VIEW CONCURRENTLY \(BuyerTrackedItemLinkView.schema);
+            """).run()
+            try await (db as? SQLDatabase)?.raw("""
+            REFRESH MATERIALIZED VIEW CONCURRENTLY \(TrackedItemActiveState.schema);
+            """).run()
         }
 
         return job
