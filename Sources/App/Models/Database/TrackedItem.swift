@@ -31,6 +31,19 @@ final class TrackedItem: Model, Content {
         case flyingBack
         case receivedAtVNWarehouse
         case delivered
+
+        var power: Int {
+            switch self {
+            case .receivedAtUSWarehouse:
+                return 0
+            case .flyingBack:
+                return 1
+            case .receivedAtVNWarehouse:
+                return 2
+            case .delivered:
+                return 3
+            }
+        }
     }
 
     @Field(key: "state_trails")

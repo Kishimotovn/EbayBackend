@@ -8,6 +8,7 @@
 import Foundation
 import Vapor
 import Fluent
+import SQLKit
 
 struct BuyerTrackedItemController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
@@ -90,11 +91,14 @@ struct BuyerTrackedItemController: RouteCollection {
         if input.filteredStates.isEmpty {
             query.filter(.sql(raw: "\(TrackedItemActiveState.schema).state IS NULL"))
         } else {
-            query.filter(TrackedItemActiveState.self, \.$state ~~ input.filteredStates)
+            query
+                .filter(TrackedItemActiveState.self, \.$state ~~ input.filteredStates)
                 .with(\.$trackedItems)
         }
 
         let page = try await query
+            .sort(TrackedItemActiveState.self, \.$power, .ascending)
+            .sort(TrackedItemActiveState.self, \.$stateUpdatedAt, .ascending)
             .paginate(for: request)
         
         let allOutput: [BuyerTrackedItemOutput]
@@ -144,6 +148,9 @@ struct BuyerTrackedItemController: RouteCollection {
             }
             
             try await items.create(on: transactionDB)
+            try await (transactionDB as? SQLDatabase)?.raw("""
+            REFRESH MATERIALIZED VIEW CONCURRENTLY buyer_tracked_item_link_view;
+            """).run()
             return items
         }
     }
@@ -160,7 +167,7 @@ struct BuyerTrackedItemController: RouteCollection {
             return []
         }
 
-        let foundTrackedItems = try await request.trackedItems
+        var foundTrackedItems = try await request.trackedItems
             .find(filter: .init(searchStrings: input.validTrackingNumbers()))
             .get()
 
@@ -170,7 +177,11 @@ struct BuyerTrackedItemController: RouteCollection {
         }.map { trackingNumber in
             return TrackedItem.init(sellerID: masterSellerID, trackingNumber: trackingNumber, stateTrails: [], sellerNote: "", importIDs: [])
         }
-        
+        foundTrackedItems = foundTrackedItems.sorted { lhs, rhs in
+            let lhsPower = lhs.state?.power ?? 0
+            let rhsPower = rhs.state?.power ?? 0
+            return lhsPower <= rhsPower
+        }
         var items = notFoundItems
         items.append(contentsOf: foundTrackedItems)
         return items

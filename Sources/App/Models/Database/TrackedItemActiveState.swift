@@ -16,5 +16,8 @@ final class TrackedItemActiveState: Model {
     @Field(key: "state_updated_at")
     var stateUpdatedAt: Date
 
+    @Field(key: "power")
+    var power: Int
+
     init() { }
 }

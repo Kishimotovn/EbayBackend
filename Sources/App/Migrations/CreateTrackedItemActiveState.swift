@@ -16,7 +16,14 @@ struct CreateTrackedItemActiveState: AsyncMigration {
             from tracked_items ti
             left join jsonb_array_elements(to_jsonb(ti.state_trails)) trails on true
         )
-        select *
+        select
+            *,
+            case
+                when state = 'receivedAtUSWarehouse' then 1
+                when state = 'flyingBack' then 2
+                when state = 'receivedAtVNWarehouse' then 3
+                else 4
+            end as power
         from ranked_tracked_items
         where rn = 1;
         """).run()
