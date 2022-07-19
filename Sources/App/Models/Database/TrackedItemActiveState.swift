@@ -19,5 +19,14 @@ final class TrackedItemActiveState: Model {
     @Field(key: "power")
     var power: Int
 
+    @OptionalField(key: "received_at_us_updated_at")
+    var receivedAtUSAt: Date?
+    
+    @OptionalField(key: "flying_back_updated_at")
+    var flyingBackAt: Date?
+
+    @OptionalField(key: "received_at_vn_updated_at")
+    var receivedAtVNAt: Date?
+
     init() { }
 }

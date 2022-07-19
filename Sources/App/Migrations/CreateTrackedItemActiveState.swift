@@ -10,11 +10,35 @@ struct CreateTrackedItemActiveState: AsyncMigration {
         AS
         with ranked_tracked_items as (
             SELECT
-                ti.id, ti.tracking_number,
+                ti.id,
+                ti.tracking_number,
                 trails.value->>'state' as "state", trails.value->>'updatedAt' as "state_updated_at",
-                ROW_NUMBER() OVER (PARTITION BY "tracking_number" ORDER BY trails.value->>'updatedAt' DESC) AS rn
+                ROW_NUMBER() OVER (PARTITION BY "tracking_number", trails.value->>'state' ORDER BY trails.value->>'updatedAt' DESC) AS rn
             from tracked_items ti
             left join jsonb_array_elements(to_jsonb(ti.state_trails)) trails on true
+        ),
+        ungrouped as (
+            select *,
+                case
+                    when state = 'flyingBack' then state_updated_at
+                end as "flying_back_updated_at",
+                case
+                    when state = 'receivedAtUSWarehouse' then state_updated_at
+                end as "received_at_us_updated_at",
+                case
+                    when state = 'receivedAtVNWarehouse' then state_updated_at
+                end as "received_at_vn_updated_at"
+            from ranked_tracked_items
+            where rn = 1
+        ),
+        ranked as (
+        select
+            ungrouped.id, ungrouped.tracking_number, ungrouped.state, ungrouped.state_updated_at,
+            max("flying_back_updated_at") over (partition by tracking_number) as "flying_back_updated_at",
+            max("received_at_us_updated_at") over (partition by tracking_number) as "received_at_us_updated_at",
+            max("received_at_vn_updated_at") over (partition by tracking_number) as "received_at_vn_updated_at",
+            ROW_NUMBER() OVER (PARTITION BY "tracking_number" ORDER BY state_updated_at DESC) AS rn
+            from ungrouped
         )
         select
             *,
@@ -24,7 +48,7 @@ struct CreateTrackedItemActiveState: AsyncMigration {
                 when state = 'receivedAtVNWarehouse' then 3
                 else 4
             end as power
-        from ranked_tracked_items
+        from ranked
         where rn = 1;
         """).run()
         

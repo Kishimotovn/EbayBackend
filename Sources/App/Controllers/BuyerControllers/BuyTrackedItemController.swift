@@ -81,7 +81,10 @@ struct BuyerTrackedItemController: RouteCollection {
             .filter(\.$buyer.$id == buyerID)
 
         if let searchString = input.searchString {
-            query.filter(.sql(raw: "\(BuyerTrackedItem.schema).tracking_number"), .custom("~*"), .bind("^.*(\(searchString))$"))
+            query.group(.or) { builder in
+                builder.filter(.sql(raw: "\(BuyerTrackedItem.schema).tracking_number"), .custom("~*"), .bind("^.*(\(searchString))$"))
+                builder.filter(.sql(raw: "\(BuyerTrackedItem.schema).note"), .custom("~*"), .bind(searchString))
+            }
         }
 
         query
@@ -95,6 +98,34 @@ struct BuyerTrackedItemController: RouteCollection {
             query
                 .filter(TrackedItemActiveState.self, \.$state ~~ input.filteredStates)
                 .with(\.$trackedItems)
+            
+            if let fromDate = input.fromDate {
+                query.group(.or) { builder in
+                    if input.filteredStates.contains(.receivedAtUSWarehouse) {
+                        builder.filter(TrackedItemActiveState.self, \.$receivedAtUSAt >= fromDate)
+                    }
+                    if input.filteredStates.contains(.flyingBack) {
+                        builder.filter(TrackedItemActiveState.self, \.$flyingBackAt >= fromDate)
+                    }
+                    if input.filteredStates.contains(.receivedAtVNWarehouse) {
+                        builder.filter(TrackedItemActiveState.self, \.$receivedAtVNAt >= fromDate)
+                    }
+                }
+            }
+
+            if let toDate = input.toDate {
+                query.group(.or) { builder in
+                    if input.filteredStates.contains(.receivedAtUSWarehouse) {
+                        builder.filter(TrackedItemActiveState.self, \.$receivedAtUSAt < toDate)
+                    }
+                    if input.filteredStates.contains(.flyingBack) {
+                        builder.filter(TrackedItemActiveState.self, \.$flyingBackAt < toDate)
+                    }
+                    if input.filteredStates.contains(.receivedAtVNWarehouse) {
+                        builder.filter(TrackedItemActiveState.self, \.$receivedAtVNAt < toDate)
+                    }
+                }
+            }
         }
 
         let page = try await query
