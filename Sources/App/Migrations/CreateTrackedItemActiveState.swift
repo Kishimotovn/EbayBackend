@@ -6,7 +6,7 @@ import SQLKit
 struct CreateTrackedItemActiveState: AsyncMigration {
     func prepare(on database: Database) async throws {
         try await (database as? SQLDatabase)?.raw("""
-        CREATE MATERIALIZED VIEW "\(TrackedItemActiveState.schema)"
+        CREATE MATERIALIZED VIEW "\(raw: TrackedItemActiveState.schema)"
         AS
         with ranked_tracked_items as (
             SELECT
@@ -53,13 +53,13 @@ struct CreateTrackedItemActiveState: AsyncMigration {
         """).run()
         
         try await (database as? SQLDatabase)?.raw("""
-        CREATE UNIQUE INDEX ON \(TrackedItemActiveState.schema) (id);
+        CREATE UNIQUE INDEX ON \(raw: TrackedItemActiveState.schema) (id);
         """).run()
     }
 
     func revert(on database: Database) async throws {
         try await (database as? SQLDatabase)?.raw("""
-        DROP MATERIALIZED VIEW "\(TrackedItemActiveState.schema)"
+        DROP MATERIALIZED VIEW "\(raw: TrackedItemActiveState.schema)"
         """).run()
     }
 }
