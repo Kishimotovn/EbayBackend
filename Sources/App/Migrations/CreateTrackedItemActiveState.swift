@@ -41,7 +41,13 @@ struct CreateTrackedItemActiveState: AsyncMigration {
             from ungrouped
         )
         select
-            *,
+            id,
+            tracking_number,
+            state,
+            state_updated_at,
+            received_at_us_updated_at::timestamp,
+            flying_back_updated_at::timestamp,
+            received_at_vn_updated_at::timestamp,
             case
                 when state = 'receivedAtUSWarehouse' then 1
                 when state = 'flyingBack' then 2

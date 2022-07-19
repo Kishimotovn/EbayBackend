@@ -153,7 +153,9 @@ struct BuyerTrackedItemController: RouteCollection {
                 total: page.metadata.total,
                 pageCount: page.metadata.pageCount,
                 searchString: input.searchString,
-                filteredStates: input.filteredStates
+                filteredStates: input.filteredStates,
+                fromDate: input.fromDate,
+                toDate: input.toDate
             )
         )
     }
