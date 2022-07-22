@@ -100,13 +100,7 @@ struct UpdateTrackedItemByLineJob: AsyncJob {
             }
 
             // Run every minute.
-//            try await (transactionDB as? SQLDatabase)?.raw("""
-//            REFRESH MATERIALIZED VIEW CONCURRENTLY \(raw: BuyerTrackedItemLinkView.schema);
-//            """).run()
-//
-//            try await (transactionDB as? SQLDatabase)?.raw("""
-//            REFRESH MATERIALIZED VIEW CONCURRENTLY \(raw: TrackedItemActiveState.schema);
-//            """).run()
+
 
             return updateResults
         }

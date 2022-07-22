@@ -15,10 +15,19 @@ public func jobs(app: Application) throws {
     app.queues
         .add(emailJob)
     app.queues.add(UpdateTrackedItemsJob())
+    app.queues.add(UpdateTrackedItemByLineJob())
+    
+    
     app.queues
         .schedule(UpdateQuantityJob())
         .minutely()
         .at(0)
+    
+    app.queues
+        .schedule(PeriodicallyUpdateJob())
+        .minutely()
+        .at(0)
+
     app.queues
         .schedule(ResetScanCountJob())
         .daily()
