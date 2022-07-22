@@ -11,6 +11,7 @@ import Fluent
 import CodableCSV
 import SQLKit
 
+
 struct SellerTrackedItemController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
         let groupedRoutes = routes.grouped("sellerTrackedItems")
@@ -21,8 +22,28 @@ struct SellerTrackedItemController: RouteCollection {
         groupedRoutes.post(use: createHandler)
         groupedRoutes.post("multiple", use: createMultipleHandler)
         groupedRoutes.on(.POST, "uploadByState", ":state", body: .collect(maxSize: "50mb"), use: uploadByStateHandler)
+        groupedRoutes.post("uploadByLine", use: uploadByLineHandler)
         groupedRoutes.get("uploadJobs", use: getUploadJobsHandler)
         groupedRoutes.delete("revertJob", TrackedItemUploadJob.parameterPath, use: revertUploadJobsHandler)
+    }
+    
+    private func uploadByLineHandler(request: Request) async throws -> HTTPResponseStatus {
+        struct RowUpdateInput: Content {
+            var date: String
+            var trackingNumber: String
+            var sheetName: String
+            var state: TrackedItem.State
+        }
+        
+        guard let masterSellerID = request.application.masterSellerID else {
+            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
+        }
+
+        let input = try request.content.decode(RowUpdateInput.self)
+        let payload = UpdateTrackedItemJobByLinePayload.init(date: input.date, trackingNumber: input.trackingNumber, sheetName: input.sheetName, sellerID: masterSellerID, state: input.state)
+
+        try await request.queue.dispatch(UpdateTrackedItemByLineJob.self, payload, maxRetryCount: 3)
+        return .ok
     }
 
     struct UploadTrackedItemsByDayOutput: Content {
