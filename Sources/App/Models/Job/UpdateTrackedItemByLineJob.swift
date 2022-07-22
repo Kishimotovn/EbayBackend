@@ -22,7 +22,7 @@ struct UpdateTrackedItemByLineJob: AsyncJob {
         let isoDateFormatter = ISO8601DateFormatter()
         isoDateFormatter.formatOptions = .withInternetDateTime
 
-        context.logger.info("Running update by line for tracking number \(payload.trackingNumber)")
+        context.logger.info("Running update by line for tracking number \(payload.trackingNumber) - \(payload.date)")
 
         let importID = "byLine-\(payload.sheetName ?? "N/A")-\(payload.state)-\(Date().toISODateTime())"
         let trackingNumber = payload.trackingNumber.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -114,6 +114,10 @@ struct UpdateTrackedItemByLineJob: AsyncJob {
 //            let emailRepo = SendGridEmailRepository(appFrontendURL: context.application.appFrontendURL ?? "", queue: context.queue, db: context.application.db, eventLoop: context.eventLoop)
 //            try await emailRepo.sendTrackedItemsUpdateEmail(for: stateChangedItems).get()
 //        }
+    }
+    
+    func error(_ context: QueueContext, _ error: Error, _ payload: UpdateTrackedItemJobByLinePayload) async throws {
+        context.logger.info("Failed to update by line for tracking number \(payload.trackingNumber) \(payload.date), error: \(error.localizedDescription)")
     }
 
     private func date(from string: String, using dateFormatter: DateFormatter) -> Date? {
