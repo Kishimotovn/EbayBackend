@@ -8,7 +8,7 @@ import NIOCore
 import SQLKit
 
 struct UpdateTrackedItemJobByLinePayload: Codable {
-    var date: String
+    var date: Date
     var trackingNumber: String
     var sheetName: String?
     var sellerID: Seller.IDValue
@@ -19,16 +19,13 @@ struct UpdateTrackedItemByLineJob: AsyncJob {
     typealias Payload = UpdateTrackedItemJobByLinePayload
     
     func dequeue(_ context: QueueContext, _ payload: Payload) async throws {
-        let isoDateFormatter = ISO8601DateFormatter()
-        isoDateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-
+        let date = payload.date
         context.logger.info("Running update by line for tracking number \(payload.trackingNumber) - \(payload.date)")
 
         let importID = "byLine-\(payload.sheetName ?? "N/A")-\(payload.state)-\(Date().toISODateTime())"
         let trackingNumber = payload.trackingNumber.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard
-            let date = isoDateFormatter.date(from: payload.date),
             trackingNumber.count >= 5
         else {
             context.logger.info("Failed to parse date \(payload.trackingNumber) - \(payload.date)")

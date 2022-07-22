@@ -40,8 +40,15 @@ struct SellerTrackedItemController: RouteCollection {
         }
 
         let input = try request.content.decode(RowUpdateInput.self)
+        let isoDateFormatter = ISO8601DateFormatter()
+        isoDateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        
+        guard let date = isoDateFormatter.date(from: input.date) else {
+            throw Abort(.badRequest, reason: "Date not in ISO8601 format")
+        }
+
         request.logger.info("got input \(input)")
-        let payload = UpdateTrackedItemJobByLinePayload.init(date: input.date, trackingNumber: input.trackingNumber, sheetName: input.sheetName, sellerID: masterSellerID, state: input.state)
+        let payload = UpdateTrackedItemJobByLinePayload.init(date: date, trackingNumber: input.trackingNumber, sheetName: input.sheetName, sellerID: masterSellerID, state: input.state)
 
         try await request.queue.dispatch(UpdateTrackedItemByLineJob.self, payload, maxRetryCount: 3)
         return .ok
