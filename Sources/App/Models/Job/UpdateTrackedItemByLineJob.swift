@@ -20,7 +20,7 @@ struct UpdateTrackedItemByLineJob: AsyncJob {
     
     func dequeue(_ context: QueueContext, _ payload: Payload) async throws {
         let isoDateFormatter = ISO8601DateFormatter()
-        isoDateFormatter.formatOptions = .withInternetDateTime
+        isoDateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
 
         context.logger.info("Running update by line for tracking number \(payload.trackingNumber) - \(payload.date)")
 
@@ -31,6 +31,7 @@ struct UpdateTrackedItemByLineJob: AsyncJob {
             let date = isoDateFormatter.date(from: payload.date),
             trackingNumber.count >= 5
         else {
+            context.logger.info("Failed to parse date \(payload.trackingNumber) - \(payload.date)")
             return
         }
         
@@ -107,6 +108,7 @@ struct UpdateTrackedItemByLineJob: AsyncJob {
 
             return updateResults
         }
+        context.logger.info("Finished update by line for tracking number \(payload.trackingNumber) - \(payload.date)")
 
 //        let stateChangedItems = results.filter(\.1).map(\.0)
 //
