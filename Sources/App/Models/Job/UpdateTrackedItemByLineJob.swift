@@ -19,7 +19,8 @@ struct UpdateTrackedItemByLineJob: AsyncJob {
     typealias Payload = UpdateTrackedItemJobByLinePayload
     
     func dequeue(_ context: QueueContext, _ payload: Payload) async throws {
-        let dateFormatter = DateFormatter()
+        let isoDateFormatter = ISO8601DateFormatter()
+        isoDateFormatter.formatOptions = .withInternetDateTime
 
         context.logger.info("Running update by line for tracking number \(payload.trackingNumber)")
 
@@ -27,7 +28,7 @@ struct UpdateTrackedItemByLineJob: AsyncJob {
         let trackingNumber = payload.trackingNumber.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard
-            let date = self.date(from: payload.date, using: dateFormatter),
+            let date = isoDateFormatter.date(from: payload.date),
             trackingNumber.count >= 5
         else {
             return
