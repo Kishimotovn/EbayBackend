@@ -21,7 +21,9 @@ struct UpdateTrackedItemByLineJob: AsyncJob {
     func dequeue(_ context: QueueContext, _ payload: Payload) async throws {
         let dateFormatter = DateFormatter()
 
-        let importID = "byLine-\(payload.sheetName)-\(payload.state)-\(Date().toISODateTime())"
+        context.logger.info("Running update by line for tracking number \(payload.trackingNumber)")
+
+        let importID = "byLine-\(payload.sheetName ?? "N/A")-\(payload.state)-\(Date().toISODateTime())"
         let trackingNumber = payload.trackingNumber.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard

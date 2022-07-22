@@ -40,6 +40,7 @@ struct SellerTrackedItemController: RouteCollection {
         }
 
         let input = try request.content.decode(RowUpdateInput.self)
+        request.logger.info("got input \(input)")
         let payload = UpdateTrackedItemJobByLinePayload.init(date: input.date, trackingNumber: input.trackingNumber, sheetName: input.sheetName, sellerID: masterSellerID, state: input.state)
 
         try await request.queue.dispatch(UpdateTrackedItemByLineJob.self, payload, maxRetryCount: 3)
