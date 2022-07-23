@@ -15,6 +15,7 @@ struct BuyerBasicAuthenticator: BasicAuthenticator {
             .group(.or) { builder in
                 builder.filter(\.$username == basic.username)
                 builder.filter(\.$email == basic.username)
+                builder.filter(\.$phoneNumber == basic.username)
             }
             .first()
             .flatMapThrowing
