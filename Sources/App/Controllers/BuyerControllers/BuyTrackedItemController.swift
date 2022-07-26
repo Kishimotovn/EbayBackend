@@ -18,16 +18,70 @@ struct BuyerTrackedItemController: RouteCollection {
 
         groupedRoutes.group(BuyerJWTAuthenticator()) { buyerOrNotRoutes in
         }
-        
+
         let buyerProtectedRoutes = groupedRoutes
             .grouped(BuyerJWTAuthenticator())
             .grouped(Buyer.guardMiddleware())
 
         buyerProtectedRoutes.get("", use: getBuyerTrackedItemsHandler)
+        buyerProtectedRoutes.get("count", use: getBuyerTrackedItemCountHandler)
         buyerProtectedRoutes.post("register", use: registerMultipleItemHandler)
         buyerProtectedRoutes.delete(use: deleteMultipleItemsHandler)
         buyerProtectedRoutes.patch(use: updateMultipleItemsHandler)
         buyerProtectedRoutes.patch(BuyerTrackedItem.parameterPath, use: updateBuyerTrackedItemHandler)
+    }
+
+    private func getBuyerTrackedItemCountHandler(request: Request) async throws -> BuyerTrackedItemCountOutput {
+        let buyer = try request.auth.require(Buyer.self)
+        let buyerID = try buyer.requireID()
+        let input = try request.query.decode(GetBuyerTrackedItemInput.self)
+        
+        let states: [TrackedItem.State] = [.receivedAtUSWarehouse, .flyingBack, .receivedAtVNWarehouse]
+        
+        let counts = try await states.asyncMap { state -> Int in
+            let query = BuyerTrackedItem.query(on: request.db)
+                .filter(\.$buyer.$id == buyerID)
+                .join(BuyerTrackedItemLinkView.self, on: \BuyerTrackedItem.$id == \BuyerTrackedItemLinkView.$buyerTrackedItem.$id)
+                .join(TrackedItemActiveState.self, on: \TrackedItemActiveState.$id == \BuyerTrackedItemLinkView.$trackedItem.$id)
+                .filter(TrackedItemActiveState.self, \.$state == state)
+            
+            if let searchString = input.searchString {
+                query.group(.or) { builder in
+                    builder.filter(.sql(raw: "\(BuyerTrackedItem.schema).tracking_number"), .custom("~*"), .bind("^.*(\(searchString))$"))
+                    builder.filter(.sql(raw: "\(BuyerTrackedItem.schema).note"), .custom("~*"), .bind(searchString))
+                }
+            }
+            
+            if let fromDate = input.fromDate {
+                if state == .receivedAtUSWarehouse {
+                    query.filter(TrackedItemActiveState.self, \.$receivedAtUSAt >= fromDate)
+                }
+                if state == .flyingBack {
+                    query.filter(TrackedItemActiveState.self, \.$flyingBackAt >= fromDate)
+                }
+                if state == .receivedAtVNWarehouse {
+                    query.filter(TrackedItemActiveState.self, \.$receivedAtVNAt >= fromDate)
+                }
+            }
+
+            if let toDate = input.toDate {
+                if state == .receivedAtUSWarehouse {
+                    query.filter(TrackedItemActiveState.self, \.$receivedAtUSAt < toDate)
+                }
+                if state == .flyingBack {
+                    query.filter(TrackedItemActiveState.self, \.$flyingBackAt < toDate)
+                }
+                if state == .receivedAtVNWarehouse {
+                    query.filter(TrackedItemActiveState.self, \.$receivedAtVNAt < toDate)
+                }
+            }
+
+            return try await query.count()
+        }
+
+        return .init(receivedAtUSWarehouseCount: counts[0],
+                     flyingBackCount: counts[1],
+                     receivedAtVNWarehouseCount: counts[2])
     }
     
     private func updateMultipleItemsHandler(request: Request) async throws -> [BuyerTrackedItemOutput] {
