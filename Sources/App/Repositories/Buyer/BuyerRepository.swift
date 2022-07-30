@@ -28,7 +28,11 @@ struct DatabaseBuyerRepository: BuyerRepository {
 
     func find(email: String) -> EventLoopFuture<Buyer?> {
         return Buyer.query(on: self.db)
-            .filter(\.$email == email)
+            .group(.or) { builder in
+                builder.filter(\.$username == email.lowercased())
+                builder.filter(\.$email == email.lowercased())
+                builder.filter(\.$phoneNumber == email.lowercased())
+            }
             .first()
     }
 }

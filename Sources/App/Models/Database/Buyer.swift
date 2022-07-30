@@ -95,7 +95,7 @@ extension Buyer {
 extension Buyer {
     func generateToken() throws -> BuyerToken {
         try .init(
-            value: [UInt8].random(count: 16).base64,
+            value: .randomCode(),
             buyerID: self.requireID()
         )
     }

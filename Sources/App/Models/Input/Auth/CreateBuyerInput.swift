@@ -18,9 +18,9 @@ struct CreateBuyerInput: Content {
 
 extension CreateBuyerInput {
     func buyer() throws -> Buyer {
-        return try Buyer(username: self.username,
+        return try Buyer(username: self.username.lowercased(),
                          passwordHash: Bcrypt.hash(self.password),
-                         email: self.email,
+                         email: self.email.lowercased(),
                          phoneNumber: self.phoneNumber)
     }
 }

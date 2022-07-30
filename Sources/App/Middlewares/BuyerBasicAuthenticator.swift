@@ -13,9 +13,9 @@ struct BuyerBasicAuthenticator: BasicAuthenticator {
     func authenticate(basic: BasicAuthorization, for request: Request) -> EventLoopFuture<Void> {
         Buyer.query(on: request.db)
             .group(.or) { builder in
-                builder.filter(\.$username == basic.username)
-                builder.filter(\.$email == basic.username)
-                builder.filter(\.$phoneNumber == basic.username)
+                builder.filter(\.$username == basic.username.lowercased())
+                builder.filter(\.$email == basic.username.lowercased())
+                builder.filter(\.$phoneNumber == basic.username.lowercased())
             }
             .first()
             .flatMapThrowing

@@ -33,7 +33,7 @@ extension Buyer {
     func generateResetPasswordToken() throws -> BuyerResetPasswordToken {
         try .init(
             buyerID: self.requireID(),
-            value: [UInt8].random(count: 16).base64
+            value: .randomCode()
         )
     }
 }

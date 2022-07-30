@@ -28,4 +28,8 @@ extension String {
         
         return numberFormatter.number(from: self)?.decimalValue
     }
+    
+    static func randomCode(length: Int = 16) -> String {
+        return NanoID(alphabet: .lowercasedLatinLetters, .numbers, .urlSafe, size: length).new()
+    }
 }
