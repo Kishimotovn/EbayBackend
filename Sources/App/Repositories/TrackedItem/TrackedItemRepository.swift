@@ -66,7 +66,7 @@ struct DatabaseTrackedItemRepository: TrackedItemRepository, DatabaseRepository 
                 trackingNumbers.forEach { number in
                     builder.filter(.sql(raw: "'\(number)'::text ILIKE CONCAT('%',\(TrackedItem.schema).tracking_number)"))
                     if number.count >= 12 {
-                        builder.filter(.sql(raw: "\(TrackedItem.schema).tracking_number) ILIKE '%\(number)'"))
+                        builder.filter(.sql(raw: "\(TrackedItem.schema).tracking_number ILIKE '%\(number)'"))
                     }
                 }
             }
