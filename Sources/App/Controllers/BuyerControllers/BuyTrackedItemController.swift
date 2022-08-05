@@ -278,10 +278,11 @@ struct BuyerTrackedItemController: RouteCollection {
             }
         }
 
-        let foundTrackingNumbers = foundTrackedItems.map(\.trackingNumber)
-        let notFoundItems = input.validTrackingNumbers().filter { trackingNumber in
-            !foundTrackingNumbers.contains(trackingNumber)
-        }.map { trackingNumber in
+        let foundTrackingNumbers = Set(foundTrackedItems.map(\.trackingNumber))
+        let inputSet = Set(input.validTrackingNumbers())
+        
+        let notFoundSet = inputSet.subtracting(foundTrackingNumbers)
+        let notFoundItems = notFoundSet.map { trackingNumber in
             return TrackedItem.init(sellerID: masterSellerID, trackingNumber: trackingNumber, stateTrails: [], sellerNote: "", importIDs: [])
         }
 
