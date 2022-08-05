@@ -280,7 +280,7 @@ struct BuyerTrackedItemController: RouteCollection {
 
         let foundTrackingNumbers = foundTrackedItems.map(\.trackingNumber)
         let notFoundItems = input.validTrackingNumbers().filter { trackingNumber in
-            !foundTrackingNumbers.contains(where: { $0.hasSuffix(trackingNumber) })
+            !foundTrackingNumbers.contains(trackingNumber)
         }.map { trackingNumber in
             return TrackedItem.init(sellerID: masterSellerID, trackingNumber: trackingNumber, stateTrails: [], sellerNote: "", importIDs: [])
         }
