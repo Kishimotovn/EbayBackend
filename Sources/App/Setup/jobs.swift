@@ -16,6 +16,7 @@ public func jobs(app: Application) throws {
         .add(emailJob)
     app.queues.add(UpdateTrackedItemsJob())
     app.queues.add(UpdateTrackedItemByLineJob())
+    app.queues.add(PeriodicallyUpdateJob())
     app.queues
         .schedule(UpdateQuantityJob())
         .minutely()

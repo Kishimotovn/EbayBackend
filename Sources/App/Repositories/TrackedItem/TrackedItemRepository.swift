@@ -74,7 +74,14 @@ struct DatabaseTrackedItemRepository: TrackedItemRepository, DatabaseRepository 
         if let searchStrings = filter.searchStrings, !searchStrings.isEmpty {
             let regexSuffixGroup = searchStrings.joined(separator: "|")
             let fullRegex = "^.*(\(regexSuffixGroup))$"
-            query.filter(.sql(raw: "\(TrackedItem.schema).tracking_number"), .custom("~*"), .bind(fullRegex))
+            query.group(.or) { builder in
+                builder.filter(.sql(raw: "\(TrackedItem.schema).tracking_number"), .custom("~*"), .bind(fullRegex))
+                builder.group(.and) { andBuilder in
+                    let fullRegex2 = "^.*(\(regexSuffixGroup))\\d{4}$"
+                    andBuilder.filter(.sql(raw: "char_length(\(TrackedItem.schema).tracking_number)"), .equal, .bind(32))
+                    andBuilder.filter(.sql(raw: "\(TrackedItem.schema).tracking_number"), .custom("~*"), .bind(fullRegex2))
+                }
+            }
         }
         if let dateRange = filter.dateRange {
             query.filter(.sql(raw: "\(TrackedItem.schema).created_at::DATE"), .greaterThanOrEqual, .bind(dateRange.start))

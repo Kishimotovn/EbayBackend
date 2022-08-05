@@ -236,9 +236,10 @@ struct BuyerTrackedItemController: RouteCollection {
             }
             
             try await items.create(on: transactionDB)
-            try await (transactionDB as? SQLDatabase)?.raw("""
-            REFRESH MATERIALIZED VIEW CONCURRENTLY buyer_tracked_item_link_view;
-            """).run()
+            
+            let payload = PeriodicallyUpdateJob.Payload(refreshBuyerTrackedItemLinkView: true, refreshTrackedItemActiveStateView: false)
+            
+            try await request.queue.dispatch(PeriodicallyUpdateJob.self, payload)
             return items
         }
     }
