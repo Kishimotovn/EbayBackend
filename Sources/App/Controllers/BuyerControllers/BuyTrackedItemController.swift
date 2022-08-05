@@ -259,6 +259,24 @@ struct BuyerTrackedItemController: RouteCollection {
         var foundTrackedItems = try await request.trackedItems
             .find(filter: .init(searchStrings: input.validTrackingNumbers()))
             .get()
+        
+        foundTrackedItems = foundTrackedItems.sorted { lhs, rhs in
+            let lhsPower = lhs.state?.power ?? 0
+            let rhsPower = rhs.state?.power ?? 0
+            return lhsPower <= rhsPower
+        }
+        
+        foundTrackedItems.forEach { item in
+            if item.trackingNumber.count == 32 {
+                item.trackingNumber.removeLast(4)
+            }
+            
+            if let buyerProvidedTrackingNumber = input.validTrackingNumbers().first(where: {
+                item.trackingNumber.hasSuffix($0)
+            }) {
+                item.trackingNumber = buyerProvidedTrackingNumber
+            }
+        }
 
         let foundTrackingNumbers = foundTrackedItems.map(\.trackingNumber)
         let notFoundItems = input.validTrackingNumbers().filter { trackingNumber in
@@ -266,11 +284,7 @@ struct BuyerTrackedItemController: RouteCollection {
         }.map { trackingNumber in
             return TrackedItem.init(sellerID: masterSellerID, trackingNumber: trackingNumber, stateTrails: [], sellerNote: "", importIDs: [])
         }
-        foundTrackedItems = foundTrackedItems.sorted { lhs, rhs in
-            let lhsPower = lhs.state?.power ?? 0
-            let rhsPower = rhs.state?.power ?? 0
-            return lhsPower <= rhsPower
-        }
+
         var items = notFoundItems
         items.append(contentsOf: foundTrackedItems)
         return items
