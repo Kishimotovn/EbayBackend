@@ -23,10 +23,29 @@ struct SellerTrackedItemController: RouteCollection {
         groupedRoutes.post("multiple", use: createMultipleHandler)
         groupedRoutes.on(.POST, "uploadByState", ":state", body: .collect(maxSize: "50mb"), use: uploadByStateHandler)
         groupedRoutes.post("uploadByLine", use: uploadByLineHandler)
+        groupedRoutes.post("removeTrackingNumber", use: removeTrackingNumberHandler)
         groupedRoutes.get("uploadJobs", use: getUploadJobsHandler)
         groupedRoutes.delete("revertJob", TrackedItemUploadJob.parameterPath, use: revertUploadJobsHandler)
     }
-    
+
+    private func removeTrackingNumberHandler(request: Request) async throws -> HTTPResponseStatus {
+        struct RowUpdateInput: Content {
+            var trackingNumber: String
+        }
+
+        guard let masterSellerID = request.application.masterSellerID else {
+            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
+        }
+
+        let input = try request.content.decode(RowUpdateInput.self)
+        try await TrackedItem.query(on: request.db)
+            .filter(\.$seller.$id == masterSellerID)
+            .filter(\.$trackingNumber == input.trackingNumber)
+            .delete(force: true)
+
+        return .ok
+    }
+
     private func uploadByLineHandler(request: Request) async throws -> HTTPResponseStatus {
         struct RowUpdateInput: Content {
             var date: String
