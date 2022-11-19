@@ -117,6 +117,11 @@ struct UpdateTrackedItemByLineJob: AsyncJob {
     
     func error(_ context: QueueContext, _ error: Error, _ payload: UpdateTrackedItemJobByLinePayload) async throws {
         context.logger.info("Failed to update by line for tracking number \(payload.trackingNumber) \(payload.date), error: \(error.localizedDescription)")
+        let db = context.application.db
+        let encoder = JSONEncoder()
+        let data = try encoder.encode(payload)
+        let failedJob = FailedJob(payload: data, jobIdentifier: String(describing: Self.self), error: "\(error)", trackingNumber: payload.trackingNumber)
+        try await failedJob.save(on: db)
     }
 
     private func date(from string: String, using dateFormatter: DateFormatter) -> Date? {
@@ -129,7 +134,7 @@ struct UpdateTrackedItemByLineJob: AsyncJob {
             "MM/dd/yyyy",
             "M/d/yyyy"
         ]
-        
+
         for i in (0..<formats.count) {
             let targetFormat = formats[i]
             dateFormatter.dateFormat = targetFormat

@@ -49,4 +49,5 @@ public func migrate(app: Application) throws {
     app.migrations.add(AddImportIDsToTrackedItems())
     app.migrations.add(CreateTrackedItemUploadJobs())
     app.migrations.add(CreateBuyerTrackedItemLinkingView())
+    app.migrations.add(CreateFailedJobs())
 }
