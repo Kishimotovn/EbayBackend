@@ -277,6 +277,17 @@ struct BuyerTrackedItemController: RouteCollection {
                 item.trackingNumber = buyerProvidedTrackingNumber
             }
         }
+        
+        foundTrackedItems = try foundTrackedItems.grouped(by: { $0.trackingNumber.uppercased() }).compactMap {
+            let values = $0.value.sorted(by: { lhs, rhs in
+                let lhsPower = lhs.state?.power ?? 0
+                let rhsPower = rhs.state?.power ?? 0
+                return lhsPower >= rhsPower
+            })
+
+            guard let value = values.first else { return nil }
+            return value
+        }
 
         let foundTrackingNumbers = Set(foundTrackedItems.map(\.trackingNumber))
         let inputSet = Set(input.validTrackingNumbers())
