@@ -289,8 +289,8 @@ struct BuyerTrackedItemController: RouteCollection {
             return value
         }
 
-        let foundTrackingNumbers = Set(foundTrackedItems.map(\.trackingNumber))
-        let inputSet = Set(input.validTrackingNumbers())
+        let foundTrackingNumbers = Set(foundTrackedItems.map(\.trackingNumber).map({ $0.uppercased() }))
+        let inputSet = Set(input.validTrackingNumbers().map({ $0.uppercased() }))
         
         let notFoundSet = inputSet.subtracting(foundTrackingNumbers)
         let notFoundItems = notFoundSet.map { trackingNumber in
