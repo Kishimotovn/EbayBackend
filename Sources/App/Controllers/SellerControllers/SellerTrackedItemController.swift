@@ -26,6 +26,8 @@ struct SellerTrackedItemController: RouteCollection {
         groupedRoutes.post("removeTrackingNumber", use: removeTrackingNumberHandler)
         groupedRoutes.get("uploadJobs", use: getUploadJobsHandler)
         groupedRoutes.delete("revertJob", TrackedItemUploadJob.parameterPath, use: revertUploadJobsHandler)
+        groupedRoutes.post("productBrokenMail", use: productBrokenMailHandler)
+
     }
 
     private func removeTrackingNumberHandler(request: Request) async throws -> HTTPResponseStatus {
@@ -72,6 +74,29 @@ struct SellerTrackedItemController: RouteCollection {
         try await request.queue.dispatch(UpdateTrackedItemByLineJob.self, payload, maxRetryCount: 3)
         return .ok
     }
+
+    private func productBrokenMailHandler(request: Request) async throws -> HTTPResponseStatus {
+        struct ProductBrokenInput: Content {
+            var trackingNumber: String
+            var description: String
+        }
+        
+        guard let masterSellerID = request.application.masterSellerID else {
+            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
+        }
+
+        let input = try request.content.decode(ProductBrokenInput.self)
+
+        request.logger.info("got input \(input)")
+
+        let buyer = Buyer.query(on: request.db)
+            .join(BuyerTrackedItem.self, on: \BuyerTrackedItem.$buyer.$id == \Buyer.$id)
+            .filter(BuyerTrackedItem.self, \.$trackingNumber == nil)
+            .first()
+        return try request.emails.sendProductBrokenEmail(for: buyer, productBrokenInput: input)
+        return .ok
+    }
+    
 
     struct UploadTrackedItemsByDayOutput: Content {
         var totalCount: Int

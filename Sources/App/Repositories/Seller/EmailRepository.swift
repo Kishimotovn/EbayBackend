@@ -15,6 +15,10 @@ struct AppFrontendURL: StorageKey {
     typealias Value = String
 }
 
+struct ProductBrokenInput {
+    var trackingNumber: String
+    var description: String
+}
 extension Application {
     var appFrontendURL: String? {
         get { self.storage[AppFrontendURL.self] }
@@ -29,6 +33,7 @@ protocol EmailRepository {
     func sendTrackedItemsUpdateEmail(for items: [TrackedItem]) throws -> EventLoopFuture<Void>
     func sendResetPasswordEmail(for buyer: Buyer,
                                 resetPasswordToken: BuyerResetPasswordToken) throws -> EventLoopFuture<Void>
+    func sendProductBrokenEmail(for buyer: Buyer, productBrokenInput: ProductBrokenInput) throws -> EventLoopFuture<Void>
 }
 
 struct SendGridEmailRepository: EmailRepository {
@@ -170,6 +175,24 @@ struct SendGridEmailRepository: EmailRepository {
                                           title: emailTitle,
                                           content: emailContent)
         }
+    }
+
+
+    func sendProductBrokenEmail(for buyer: Buyer, productBrokenInput: ProductBrokenInput) throws -> EventLoopFuture<Void> {
+        let emailTitle = "[DC] Thông báo tracking lỗi sản phẩm!"
+        let emailContent = """
+        <p>Xin chào anh/chị!</p>
+        <p>DCLogistics xin thông báo về tình trạng tracking \(productBrokenInput.trackingNumber) đang bị gặp vấn đề  \(productBrokenInput.description) . Anh/ chị kiểm tra lỗi của sản phẩm qua hình ảnh sau đây.
+         Vui lòng liên hệ lại với DCLogistics sớm nhất để chúng tôi biết hướng giải quyết của sản phẩm này.
+          <br>Đây là thông báo trực tiếp của sản phẩm vừa được repack bên Us.
+           Nếu case này không gặp phải vấn đề gì quá quan trọng bên kho sẽ auto đóng hàng sau 12h kể từ khi mail này được gửi đi. </p>
+           <p>Cám ơn quý khách đã theo dõi và đồng hành cùng DCLogistics !
+           <br> Trân trọng - Cám Ơn </p>
+        """
+        
+        return try self.sendEmail(to: buyer.email,
+                                  title: emailTitle,
+                                  content: emailContent)
     }
 
     func sendItemAvailableEmail(for item: Item) throws -> EventLoopFuture<Void> {
