@@ -76,11 +76,6 @@ struct SellerTrackedItemController: RouteCollection {
     }
 
     private func productBrokenMailHandler(request: Request) async throws -> HTTPResponseStatus {
-        struct ProductBrokenInput: Content {
-            var trackingNumber: String
-            var description: String
-        }
-        
         guard let masterSellerID = request.application.masterSellerID else {
             throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
         }
@@ -89,11 +84,13 @@ struct SellerTrackedItemController: RouteCollection {
 
         request.logger.info("got input \(input)")
 
-        let buyer = Buyer.query(on: request.db)
+        guard let buyer = try await Buyer.query(on: request.db)
             .join(BuyerTrackedItem.self, on: \BuyerTrackedItem.$buyer.$id == \Buyer.$id)
-            .filter(BuyerTrackedItem.self, \.$trackingNumber == nil)
-            .first()
-        return try request.emails.sendProductBrokenEmail(for: buyer, productBrokenInput: input)
+            .filter(BuyerTrackedItem.self, \.$trackingNumber == input.trackingNumber)
+            .first() else {
+            throw Abort(.badRequest, reason: "Customer not found!")
+        }
+        try request.emails.sendProductBrokenEmail(for: buyer, productBrokenInput: input)
         return .ok
     }
     

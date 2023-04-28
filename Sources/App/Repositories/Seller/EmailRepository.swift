@@ -15,10 +15,6 @@ struct AppFrontendURL: StorageKey {
     typealias Value = String
 }
 
-struct ProductBrokenInput {
-    var trackingNumber: String
-    var description: String
-}
 extension Application {
     var appFrontendURL: String? {
         get { self.storage[AppFrontendURL.self] }
