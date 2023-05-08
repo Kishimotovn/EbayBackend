@@ -84,13 +84,13 @@ struct SellerTrackedItemController: RouteCollection {
 
         request.logger.info("got input \(input)")
 
-        guard let buyer = try await Buyer.query(on: request.db)
-            .join(BuyerTrackedItem.self, on: \BuyerTrackedItem.$buyer.$id == \Buyer.$id)
-            .filter(BuyerTrackedItem.self, \.$trackingNumber == input.trackingNumber)
+        guard let buyerTrackingView = try await BuyerTrackedItemLinkView.query(on: request.db)
+            .join(BuyerTrackedItem.self, on: \BuyerTrackedItemLinkView.$buyerTrackedItem.$id == \BuyerTrackedItem.$id)
+            .filter(BuyerTrackedItemLinkView.self, \.$trackedItemTrackingNumber == input.trackingNumber)
             .first() else {
             throw Abort(.badRequest, reason: "Customer not found!")
         }
-        try request.emails.sendProductBrokenEmail(for: buyer, productBrokenInput: input)
+        try request.emails.sendProductBrokenEmail(for: buyerTrackingView.buyerTrackedItem.buyer, productBrokenInput: input)
         return .ok
     }
     
