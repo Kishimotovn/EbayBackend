@@ -84,9 +84,15 @@ struct SellerTrackedItemController: RouteCollection {
 
         request.logger.info("got input \(input)")
 
+        guard let trackingItem = try await TrackedItem.query(on: request.db)
+            .filter(\.$trackingNumber == input.trackingNumber)
+            .filter(\.$updatedAt > input.receivedAtUSAt)
+            .sort( \.$updatedAt, .ascending)
+            .first() else {
+            throw Abort(.badRequest, reason: "TrackingItem not found!")
+        }
         guard let buyerTrackingView = try await BuyerTrackedItemLinkView.query(on: request.db)
-            .join(BuyerTrackedItem.self, on: \BuyerTrackedItemLinkView.$buyerTrackedItem.$id == \BuyerTrackedItem.$id)
-            .filter(BuyerTrackedItemLinkView.self, \.$trackedItemTrackingNumber == input.trackingNumber)
+            .filter(\.$trackedItem.$id == trackingItem.requireID())
             .first() else {
             throw Abort(.badRequest, reason: "Customer not found!")
         }

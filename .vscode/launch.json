@@ -1,0 +1,28 @@
+{
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "sourceLanguages": [
+                "swift"
+            ],
+            "name": "Debug Run",
+            "program": "${workspaceFolder:EbayBackend}/.build/debug/Run",
+            "args": [],
+            "cwd": "${workspaceFolder:EbayBackend}",
+            "preLaunchTask": "swift: Build Debug Run"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "sourceLanguages": [
+                "swift"
+            ],
+            "name": "Release Run",
+            "program": "${workspaceFolder:EbayBackend}/.build/release/Run",
+            "args": [],
+            "cwd": "${workspaceFolder:EbayBackend}",
+            "preLaunchTask": "swift: Build Release Run"
+        }
+    ]
+}
