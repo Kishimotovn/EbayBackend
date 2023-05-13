@@ -1,7 +1,8 @@
 import Foundation
 import Vapor
-struct ProductBrokenInput: Content {
+
+struct FaultyTrackingItemNotificationInput: Content {
     var trackingNumber: String
-    var description: String
+    var faultDescription: String
     var receivedAtUSAt: Date
 }

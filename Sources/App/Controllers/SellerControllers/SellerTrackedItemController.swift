@@ -26,7 +26,8 @@ struct SellerTrackedItemController: RouteCollection {
         groupedRoutes.post("removeTrackingNumber", use: removeTrackingNumberHandler)
         groupedRoutes.get("uploadJobs", use: getUploadJobsHandler)
         groupedRoutes.delete("revertJob", TrackedItemUploadJob.parameterPath, use: revertUploadJobsHandler)
-        groupedRoutes.post("productBrokenMail", use: productBrokenMailHandler)
+
+        groupedRoutes.post("faultyTrackingItemNotification", use: faultyTrackingItemNotificationHandler)
 
     }
 
@@ -75,28 +76,38 @@ struct SellerTrackedItemController: RouteCollection {
         return .ok
     }
 
-    private func productBrokenMailHandler(request: Request) async throws -> HTTPResponseStatus {
-        guard let masterSellerID = request.application.masterSellerID else {
-            throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
+    private func faultyTrackingItemNotificationHandler(request: Request) async throws -> HTTPResponseStatus {
+        let input = try request.content.decode(FaultyTrackingItemNotificationInput.self)
+        do {
+            request.logger.info("got input \(input)")
+
+            guard let trackingItem = try await BuyerTrackedItemLinkView.query(on: request.db)
+                .join(TrackedItem.self, on: \TrackedItem.$id == \BuyerTrackedItemLinkView.$trackedItem.$id)
+                .filter(\.$trackedItemTrackingNumber == input.trackingNumber)
+                .filter(TrackedItem.self, \.$updatedAt >= input.receivedAtUSAt)
+                .sort(TrackedItem.self, \.$updatedAt, .descending)
+                .with(\.$buyerTrackedItem, {
+                    $0.with(\.$buyer)
+                })
+                .first()
+            else {
+                throw Abort(.badRequest, reason: "TrackingItem not found!")
+            }
+            
+            let buyer = trackingItem.buyerTrackedItem.buyer
+
+            try await request.emails.sendFaultyTrackingItemNotification(
+                to: buyer,
+                trackingNumber: trackingItem.buyerTrackingNumber,
+                faultDescription: input.faultDescription
+            ).get()
+        } catch {
+            let encoder = JSONEncoder()
+            let data = try encoder.encode(input)
+            let failedJob = FailedJob(payload: data, jobIdentifier: "faultyTrackingItemNotification", error: "\(error)", trackingNumber: input.trackingNumber)
+            try await failedJob.save(on: request.db)
         }
 
-        let input = try request.content.decode(ProductBrokenInput.self)
-
-        request.logger.info("got input \(input)")
-
-        guard let trackingItem = try await TrackedItem.query(on: request.db)
-            .filter(\.$trackingNumber == input.trackingNumber)
-            .filter(\.$updatedAt > input.receivedAtUSAt)
-            .sort( \.$updatedAt, .ascending)
-            .first() else {
-            throw Abort(.badRequest, reason: "TrackingItem not found!")
-        }
-        guard let buyerTrackingView = try await BuyerTrackedItemLinkView.query(on: request.db)
-            .filter(\.$trackedItem.$id == trackingItem.requireID())
-            .first() else {
-            throw Abort(.badRequest, reason: "Customer not found!")
-        }
-        try request.emails.sendProductBrokenEmail(for: buyerTrackingView.buyerTrackedItem.buyer, productBrokenInput: input)
         return .ok
     }
     
