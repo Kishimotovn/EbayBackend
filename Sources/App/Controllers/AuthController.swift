@@ -179,8 +179,8 @@ struct AuthController: RouteCollection {
         return request.auth.get(Seller.self)!
     }
 
-    private func getMeHandler(request: Request) throws -> Buyer {
-        return request.auth.get(Buyer.self)!
+    private func getMeHandler(request: Request) throws -> BuyerOutput {
+		return request.auth.get(Buyer.self)!.output()
     }
 
     private func loginSellerHandler(request: Request) async throws -> SellerLoginOutput {

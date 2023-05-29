@@ -14,6 +14,7 @@ struct BuyerTrackedItemController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
         let groupedRoutes = routes.grouped("buyerTrackedItems")
 
+		groupedRoutes.get("packingRequest", use: searchForTrackingItemsHandler)
         groupedRoutes.post("search", use: searchForTrackingItemsHandler)
 
         groupedRoutes.group(BuyerJWTAuthenticator()) { buyerOrNotRoutes in
@@ -30,6 +31,19 @@ struct BuyerTrackedItemController: RouteCollection {
         buyerProtectedRoutes.patch(use: updateMultipleItemsHandler)
         buyerProtectedRoutes.patch(BuyerTrackedItem.parameterPath, use: updateBuyerTrackedItemHandler)
     }
+
+	private func getPackingRequestHandler(request: Request) async throws -> String {
+		let input = try request.query.decode(GetPackingRequestInput.self)
+
+		guard let item = try await BuyerTrackedItemLinkView.query(on: request.db)
+			.filter(\.$trackedItemTrackingNumber == input.trackingNumber)
+			.with(\.$buyerTrackedItem)
+			.first() else {
+			return ""
+		}
+
+		return item.buyerTrackedItem.packingRequest
+	}
 
     private func getBuyerTrackedItemCountHandler(request: Request) async throws -> BuyerTrackedItemCountOutput {
         let buyer = try request.auth.require(Buyer.self)
@@ -88,12 +102,20 @@ struct BuyerTrackedItemController: RouteCollection {
         let buyer = try request.auth.require(Buyer.self)
         let buyerID = try buyer.requireID()
 
+		let packingRequestLeft = buyer.packingRequestLeft
+
         let input = try request.content.decode(UpdateMultipleTrackedItemsInput.self)
+		if !input.sharedPackingRequest.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+			guard input.trackedItemIDs.count <= packingRequestLeft else {
+				throw AppError.notEnoughPackingRequestLeft
+			}
+		}
 
         try await BuyerTrackedItem.query(on: request.db)
             .filter(\.$id ~~ input.trackedItemIDs)
             .filter(\.$buyer.$id == buyerID)
             .set(\.$note, to: input.sharedNote)
+			.set(\.$packingRequest, to: input.sharedPackingRequest)
             .update()
 
         // TODO: LOOK AT THIS!
@@ -217,8 +239,15 @@ struct BuyerTrackedItemController: RouteCollection {
     private func registerMultipleItemHandler(request: Request) async throws -> [BuyerTrackedItem] {
         let buyer = try request.auth.require(Buyer.self)
         let buyerID = try buyer.requireID()
+		
+		let packingRequestLeft = buyer.packingRequestLeft
 
         let input = try request.content.decode(RegisterMultipleTrackedItemInput.self)
+		if input.sharedPackingRequest?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
+			guard input.trackingNumbers.count <= packingRequestLeft else {
+				throw AppError.notEnoughPackingRequestLeft
+			}
+		}
 
         let buyerTrackedItems = try await request
             .buyerTrackedItems
@@ -231,12 +260,16 @@ struct BuyerTrackedItemController: RouteCollection {
             let items = input.trackingNumbers.map {
                 return BuyerTrackedItem(
                     note: input.sharedNote ?? "",
+					packingRequest: input.sharedPackingRequest ?? "",
                     buyerID: buyerID,
-                    trackingNumber: $0.trimmingCharacters(in: .whitespacesAndNewlines))
+                    trackingNumber: $0.trimmingCharacters(in: .whitespacesAndNewlines)
+				)
             }
             
             try await items.create(on: transactionDB)
-            
+			buyer.packingRequestLeft -= input.trackingNumbers.count
+			try await buyer.save(on: transactionDB)
+
             let payload = PeriodicallyUpdateJob.Payload(refreshBuyerTrackedItemLinkView: true, refreshTrackedItemActiveStateView: false)
             
             try await request.queue.dispatch(PeriodicallyUpdateJob.self, payload)
@@ -318,12 +351,26 @@ struct BuyerTrackedItemController: RouteCollection {
             .first()
             .unwrap(or: Abort(.badRequest, reason: "Yêu cầu không hợp lệ"))
             .flatMap { buyerTrackedItem in
-                if let note = input.note, note != buyerTrackedItem.note {
-                    buyerTrackedItem.note = note
-                }
-
-                return request.buyerTrackedItems.save(buyerTrackedItem)
-                    .transform(to: buyerTrackedItem)
+				return request.db.transaction { db in
+					if let note = input.note, note != buyerTrackedItem.note {
+						buyerTrackedItem.note = note
+					}
+					
+					if let packingRequest = input.packingRequest, packingRequest != buyerTrackedItem.packingRequest {
+						guard buyer.packingRequestLeft > 0 else {
+							return db.eventLoop.makeFailedFuture(AppError.notEnoughPackingRequestLeft)
+						}
+						
+						buyer.packingRequestLeft -= 1
+						buyerTrackedItem.packingRequest = packingRequest
+					}
+					
+					return [
+						buyer.save(on: db),
+						buyerTrackedItem.save(on: db)
+					].flatten(on: db.eventLoop)
+					.transform(to: buyerTrackedItem)
+				}
             }
     }
 }

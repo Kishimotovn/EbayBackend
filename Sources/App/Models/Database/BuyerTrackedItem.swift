@@ -18,6 +18,9 @@ final class BuyerTrackedItem: Model, Content  {
     @Field(key: "note")
     var note: String
 
+	@Field(key: "packing_request")
+	var packingRequest: String
+
     @Timestamp(key: "created_at", on: .create)
     var createdAt: Date?
 
@@ -37,12 +40,14 @@ final class BuyerTrackedItem: Model, Content  {
 
     init(
         note: String,
+		packingRequest: String,
         buyerID: Buyer.IDValue,
         trackingNumber: String
     ) {
         self.note = note
         self.$buyer.id = buyerID
         self.trackingNumber = trackingNumber
+		self.packingRequest = packingRequest
     }
 }
 

@@ -16,6 +16,7 @@ struct SellerBuyerController: RouteCollection {
         groupedRoutes.get(Buyer.parameterPath, use: getBuyerHandler)
         groupedRoutes.get(Buyer.parameterPath, "warehouses", use: getBuyerWarehousesHandler)
         groupedRoutes.put(Buyer.parameterPath, "verify", use: verifyBuyerHandler)
+		groupedRoutes.put(Buyer.parameterPath, "packingRequest", use: updateBuyerPackingRequestHandler)
     }
 
     private func getBuyerHandler(request: Request) throws -> EventLoopFuture<Buyer> {
@@ -54,6 +55,27 @@ struct SellerBuyerController: RouteCollection {
                 }
         }
     }
+
+	private func updateBuyerPackingRequestHandler(request: Request) async throws -> Int {
+		struct Input: Content {
+			var packingRequestLeft: Int
+		}
+		
+		guard let buyerID = request.parameters.get(Buyer.parameter, as: Buyer.IDValue.self) else {
+			throw Abort(.badRequest, reason: "Yêu cầu không hợp lệ")
+		}
+		let input = try request.content.decode(Input.self)
+		
+		let buyer = try await request.buyers
+			.find(buyerID: buyerID)
+			.unwrap(or: Abort(.badRequest, reason: "Yêu cầu không hợp lệ"))
+			.get()
+		
+		buyer.packingRequestLeft = input.packingRequestLeft
+		try await buyer.save(on: request.db)
+		
+		return buyer.packingRequestLeft
+	}
 
     private func verifyBuyerHandler(request: Request) throws -> EventLoopFuture<Buyer> {
         guard let buyerID = request.parameters.get(Buyer.parameter, as: Buyer.IDValue.self) else {

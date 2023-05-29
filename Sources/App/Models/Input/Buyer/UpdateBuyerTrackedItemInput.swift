@@ -10,4 +10,5 @@ import Vapor
 
 struct UpdateBuyerTrackedItemInput: Content {
     var note: String?
+	var packingRequest: String?
 }

@@ -20,6 +20,9 @@ final class Buyer: Model, Content {
     @Field(key: "phoneNumber")
     var phoneNumber: String
 
+	@Field(key: "packing_request_left")
+	var packingRequestLeft: Int
+
     @Timestamp(key: "created_at", on: .create)
     var createdAt: Date?
 
@@ -53,6 +56,7 @@ final class Buyer: Model, Content {
         self.passwordHash = passwordHash
         self.email = email
         self.phoneNumber = phoneNumber
+		self.packingRequestLeft = 0
     }
 }
 

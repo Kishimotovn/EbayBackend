@@ -9,6 +9,7 @@ struct BuyerOutput: Content {
     var createdAt: Date?
     var updatedAt: Date?
     var verifiedAt: Date?
+	var packingRequestLeft: Int?
 }
 
 extension Buyer: HasOutput {
@@ -20,7 +21,8 @@ extension Buyer: HasOutput {
             phoneNumber: self.phoneNumber,
             createdAt: self.createdAt,
             updatedAt: self.updatedAt,
-            verifiedAt: self.verifiedAt
+            verifiedAt: self.verifiedAt,
+			packingRequestLeft: self.packingRequestLeft
         )
     }
 }

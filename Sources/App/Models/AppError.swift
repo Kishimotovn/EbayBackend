@@ -10,6 +10,7 @@ enum AppError: String, Error {
     case uploadJobNotFound
     case uploadFileNotFound
     case uploadJobRunning
+	case notEnoughPackingRequestLeft
 }
 
 extension AppError: AbortError {
