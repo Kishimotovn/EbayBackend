@@ -14,7 +14,7 @@ struct BuyerTrackedItemController: RouteCollection {
     func boot(routes: RoutesBuilder) throws {
         let groupedRoutes = routes.grouped("buyerTrackedItems")
 
-		groupedRoutes.get("packingRequest", use: searchForTrackingItemsHandler)
+		groupedRoutes.get("packingRequest", use: getPackingRequestHandler)
         groupedRoutes.post("search", use: searchForTrackingItemsHandler)
 
         groupedRoutes.group(BuyerJWTAuthenticator()) { buyerOrNotRoutes in
