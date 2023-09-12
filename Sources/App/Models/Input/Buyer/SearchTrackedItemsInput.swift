@@ -14,7 +14,7 @@ struct SearchTrackedItemsInput: Content {
 
 extension SearchTrackedItemsInput {
     func validTrackingNumbers() -> [String] {
-        return self.trackingNumbers.filter { $0.count >= 8 }
+		return self.trackingNumbers.compactMap { $0.requireValidTrackingNumber() }
     }
 }
 
