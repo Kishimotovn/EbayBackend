@@ -31,6 +31,7 @@ final class TrackedItem: Model, Content {
         case flyingBack
         case receivedAtVNWarehouse
         case delivered
+		case registered
 
         var power: Int {
             switch self {
@@ -42,7 +43,10 @@ final class TrackedItem: Model, Content {
                 return 2
             case .delivered:
                 return 3
+			case .registered:
+				return 4
             }
+			
         }
     }
 
