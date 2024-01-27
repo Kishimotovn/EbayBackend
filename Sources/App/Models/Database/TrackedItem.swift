@@ -35,16 +35,16 @@ final class TrackedItem: Model, Content {
 
         var power: Int {
             switch self {
-            case .receivedAtUSWarehouse:
-                return 0
-            case .flyingBack:
-                return 1
-            case .receivedAtVNWarehouse:
-                return 2
-            case .delivered:
-                return 3
 			case .registered:
-				return 4
+				return 0
+            case .receivedAtUSWarehouse:
+                return 1
+            case .flyingBack:
+                return 2
+            case .receivedAtVNWarehouse:
+                return 3
+            case .delivered:
+                return 4
             }
 			
         }
