@@ -16,7 +16,6 @@ struct BuyerTrackedItemController: RouteCollection {
 
 		groupedRoutes.get("packingRequest", use: getPackingRequestHandler)
         groupedRoutes.post("search", use: searchForTrackingItemsHandler)
-        groupedRoutes.get(use: getTrackedItemHandler)
 
         groupedRoutes.group(BuyerJWTAuthenticator()) { buyerOrNotRoutes in
         }
@@ -31,12 +30,6 @@ struct BuyerTrackedItemController: RouteCollection {
         buyerProtectedRoutes.delete(use: deleteMultipleItemsHandler)
         buyerProtectedRoutes.patch(use: updateMultipleItemsHandler)
         buyerProtectedRoutes.patch(BuyerTrackedItem.parameterPath, use: updateBuyerTrackedItemHandler)
-    }
-    
-    private func getTrackedItemHandler(req: Request) async throws -> [TrackedItemOutput] {
-        let trackedItems = try await TrackedItem.query(on: req.db)
-            .all()
-        return trackedItems.map{ $0.output() }
     }
 
 	private func getPackingRequestHandler(request: Request) async throws -> String {
