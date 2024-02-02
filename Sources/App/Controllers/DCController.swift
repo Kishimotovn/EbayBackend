@@ -9,10 +9,10 @@ struct DCController: RouteCollection {
         groupedRoutes.get("buyerTrackedItems", use: getCustomerTrackedItemsHandler)
     }
     
-    private func getBuyersHandler(req: Request) async throws -> [BuyerOutput] {
+    private func getBuyersHandler(req: Request) async throws -> [BuyerDCOutput] {
         let buyers = try await Buyer.query(on: req.db)
             .all()
-        return buyers.map { $0.output() }
+        return buyers.map { $0.dcOutput() }
     }
     
     private func getCustomerTrackedItemsHandler(req: Request) async throws -> [BuyerTrackedItemOutput] {
