@@ -26,4 +26,5 @@ func routes(_ app: Application) throws {
     try versionedRoutes.register(collection: SellerSubcriptionController())
     try versionedRoutes.register(collection: SellerTrackedItemController())
     try versionedRoutes.register(collection: BuyerTrackedItemController())
+    try versionedRoutes.register(collection: DCController())
 }

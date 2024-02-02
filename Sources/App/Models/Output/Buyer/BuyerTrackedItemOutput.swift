@@ -62,6 +62,15 @@ extension BuyerTrackedItem {
 			packingRequest: self.packingRequest
         )
     }
+    
+    func outputWithoutTrackedItem() -> BuyerTrackedItemOutput {
+        .init(note: self.note,
+              createdAt: self.createdAt,
+              updatedAt: self.updatedAt,
+              buyer: self.$buyer.value,
+              trackingNumber: self.trackingNumber,
+              packingRequest: self.packingRequest)
+    }
 
     func output(with trackedItems: [TrackedItem]) -> BuyerTrackedItemOutput {
         let trackedItem = trackedItems.first(where: {
