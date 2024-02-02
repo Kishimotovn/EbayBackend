@@ -35,6 +35,7 @@ struct BuyerDCOutput: Content {
     var phoneNumber: String
     var createdAt: Date?
     var updatedAt: Date?
+    var deletedAt: Date?
     var verifiedAt: Date?
     var packingRequestLeft: Int?
 }
@@ -49,6 +50,7 @@ extension Buyer {
             phoneNumber: self.phoneNumber,
             createdAt: self.createdAt,
             updatedAt: self.updatedAt,
+            deletedAt: self.deletedAt,
             verifiedAt: self.verifiedAt,
             packingRequestLeft: self.packingRequestLeft
         )

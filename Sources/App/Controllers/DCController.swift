@@ -11,6 +11,7 @@ struct DCController: RouteCollection {
     
     private func getBuyersHandler(req: Request) async throws -> [BuyerDCOutput] {
         let buyers = try await Buyer.query(on: req.db)
+            .withDeleted()
             .all()
         return buyers.map { $0.dcOutput() }
     }
