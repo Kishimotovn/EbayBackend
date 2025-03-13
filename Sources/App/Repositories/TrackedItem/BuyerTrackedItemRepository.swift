@@ -70,7 +70,7 @@ final class TrackedItemAlias: ModelAlias {
     let model = TrackedItem()
 }
 
-struct BuyerTrackedItemRepositoryFactory {
+struct BuyerTrackedItemRepositoryFactory: @unchecked Sendable  {
     var make: ((Request) -> (BuyerTrackedItemRepository & DatabaseRepository))?
 
     mutating func use(_ make: @escaping ((Request) -> (BuyerTrackedItemRepository & DatabaseRepository))) {

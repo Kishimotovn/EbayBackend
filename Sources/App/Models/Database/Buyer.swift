@@ -2,7 +2,7 @@ import Fluent
 import Vapor
 import JWT
 
-final class Buyer: Model, Content {
+final class Buyer: Model, @unchecked Sendable, Content {
     static let schema = "buyers"
 
     @ID(key: .id)
@@ -61,8 +61,8 @@ final class Buyer: Model, Content {
 }
 
 extension Buyer: ModelAuthenticatable {
-    static var usernameKey: KeyPath<Buyer, Field<String>> = \.$username
-    static var passwordHashKey: KeyPath<Buyer, Field<String>> = \.$passwordHash
+    static let usernameKey: KeyPath<Buyer, Field<String>> = \.$username
+    static let passwordHashKey: KeyPath<Buyer, Field<String>> = \.$passwordHash
 
     func verify(password: String) throws -> Bool {
         return try Bcrypt.verify(password, created: self.passwordHash)

@@ -270,7 +270,7 @@ extension AzureStorageRepository {
     }
 }
 
-struct FileStorageRepositoryFactory {
+struct FileStorageRepositoryFactory: @unchecked Sendable {
     var make: ((Request) -> FileStorageRepository)?
     
     mutating func use(_ make: @escaping ((Request) -> FileStorageRepository)) {

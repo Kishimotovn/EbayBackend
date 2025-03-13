@@ -9,8 +9,8 @@ import Foundation
 import Vapor
 import Fluent
 
-final class AppMetadata: Model, Content {
-    static var schema: String = "app_metadata"
+final class AppMetadata: Model, @unchecked Sendable, Content {
+    static let schema: String = "app_metadata"
 
     @ID(key: .id)
     var id: UUID?

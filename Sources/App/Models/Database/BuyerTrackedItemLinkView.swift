@@ -2,8 +2,8 @@ import Foundation
 import Vapor
 import Fluent
 
-final class BuyerTrackedItemLinkView: Model, Content {
-    static var schema: String = "buyer_tracked_item_link_view"
+final class BuyerTrackedItemLinkView: Model, @unchecked Sendable, Content {
+    static let schema: String = "buyer_tracked_item_link_view"
 
     @ID(key: .id)
     var id: UUID?

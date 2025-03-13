@@ -66,7 +66,7 @@ public struct ISO8601Date: Codable {
 }
 
 @propertyWrapper
-public struct OptionalISO8601Date: Codable {
+public struct OptionalISO8601Date: Codable, Sendable {
     internal var value: Date?
 
     public var wrappedValue: Date? {

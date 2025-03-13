@@ -24,7 +24,7 @@ struct DatabaseSellerWarehouseAddressRepository: SellerWarehouseAddressRepositor
     }
 }
 
-struct SellerWarehouseAddressRepositoryFactory {
+struct SellerWarehouseAddressRepositoryFactory: @unchecked Sendable {
     var make: ((Request) -> SellerWarehouseAddressRepository)?
     
     mutating func use(_ make: @escaping ((Request) -> SellerWarehouseAddressRepository)) {

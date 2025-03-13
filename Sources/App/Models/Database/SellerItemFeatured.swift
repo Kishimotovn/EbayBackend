@@ -9,8 +9,8 @@ import Foundation
 import Vapor
 import Fluent
 
-final class SellerItemFeatured: Model, Content {
-    static var schema: String = "seller_item_featured"
+final class SellerItemFeatured: Model, @unchecked Sendable, Content {
+    static let schema: String = "seller_item_featured"
 
     @ID(key: .id)
     var id: UUID?

@@ -2,8 +2,8 @@ import Foundation
 import Vapor
 import Fluent
 
-final class TrackedItemUploadJob: Model, Content {
-    static var schema: String = "tracked_item_upload_jobs"
+final class TrackedItemUploadJob: Model, @unchecked Sendable, Content {
+    static let schema: String = "tracked_item_upload_jobs"
 
     @ID(key: .id)
     var id: UUID?
@@ -20,7 +20,7 @@ final class TrackedItemUploadJob: Model, Content {
     @Timestamp(key: "updated_at", on: .update)
     var updatedAt: Date?
 
-    struct TotalByDate: Content {
+    struct TotalByDate: Content, @unchecked Sendable {
         @ISO8601Date var date: Date
         var total: Int
 

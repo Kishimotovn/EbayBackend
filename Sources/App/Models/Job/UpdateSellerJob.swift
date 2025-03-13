@@ -12,6 +12,8 @@ import Queues
 import SendGrid
 import DeepDiff
 
+extension Change<EbayItemSummaryResponse>: @unchecked Sendable { }
+
 struct UpdateSellerBatchCount: StorageKey {
     typealias Value = Int
 }

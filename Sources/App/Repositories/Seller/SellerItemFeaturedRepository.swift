@@ -44,7 +44,7 @@ struct DatabaseSellerItemFeaturedRepository: SellerItemFeaturedRepository {
     }
 }
 
-struct SellerItemFeaturedRepositoryFactory {
+struct SellerItemFeaturedRepositoryFactory: @unchecked Sendable {
     var make: ((Request) -> SellerItemFeaturedRepository)?
     
     mutating func use(_ make: @escaping ((Request) -> SellerItemFeaturedRepository)) {

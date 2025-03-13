@@ -29,7 +29,7 @@ struct DatabaseJobMonitoringRepository: JobMonitoringRepository {
     }
 }
 
-struct JobMonitoringRepositoryFactory {
+struct JobMonitoringRepositoryFactory: @unchecked Sendable {
     var make: ((Request) -> JobMonitoringRepository)?
     
     mutating func use(_ make: @escaping ((Request) -> JobMonitoringRepository)) {

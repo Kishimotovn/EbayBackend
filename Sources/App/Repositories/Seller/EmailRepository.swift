@@ -235,7 +235,7 @@ struct SendGridEmailRepository: EmailRepository {
     }
 }
 
-struct EmailRepositoryRepositoryFactory {
+struct EmailRepositoryRepositoryFactory: @unchecked Sendable {
     var make: ((Request) -> EmailRepository)?
     
     mutating func use(_ make: @escaping ((Request) -> EmailRepository)) {

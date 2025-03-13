@@ -41,7 +41,7 @@ struct DatabaseOrderItemReceiptRepository: OrderItemReceiptRepository {
     }
 }
 
-struct OrderItemReceiptRepositoryFactory {
+struct OrderItemReceiptRepositoryFactory: @unchecked Sendable {
     var make: ((Request) -> OrderItemReceiptRepository)?
     
     mutating func use(_ make: @escaping ((Request) -> OrderItemReceiptRepository)) {

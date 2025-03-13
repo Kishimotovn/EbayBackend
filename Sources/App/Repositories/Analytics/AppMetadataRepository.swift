@@ -67,7 +67,7 @@ struct DatabaseAppMetadataRepository: AppMetadataRepository {
     }
 }
 
-struct AppMetadataRepositoryFactory {
+struct AppMetadataRepositoryFactory: @unchecked Sendable {
     var make: ((Request) -> AppMetadataRepository)?
     
     mutating func use(_ make: @escaping ((Request) -> AppMetadataRepository)) {

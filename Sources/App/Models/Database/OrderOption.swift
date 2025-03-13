@@ -9,8 +9,8 @@ import Foundation
 import Vapor
 import Fluent
 
-final class OrderOption: Model, Content {
-    static var schema: String = "order_options"
+final class OrderOption: Model, @unchecked Sendable, Content {
+    static let schema: String = "order_options"
 
     @ID(key: .id)
     var id: UUID?

@@ -147,7 +147,7 @@ struct DatabaseOrderRepository: OrderRepository {
     }
 }
 
-struct OrderRepositoryFactory {
+struct OrderRepositoryFactory: @unchecked Sendable {
     var make: ((Request) -> OrderRepository)?
 
     mutating func use(_ make: @escaping ((Request) -> OrderRepository)) {

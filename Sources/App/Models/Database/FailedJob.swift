@@ -2,8 +2,8 @@ import Foundation
 import Vapor
 import Fluent
 
-final class FailedJob: Model, Content {
-    static var schema: String = "failed_jobs"
+final class FailedJob: Model, @unchecked Sendable, Content {
+    static let schema: String = "failed_jobs"
 
     @ID(key: .id)
     var id: UUID?

@@ -30,7 +30,7 @@ struct DatabaseSellerItemSubscriptionRepository: SellerItemSubscriptionRepositor
     }
 }
 
-struct SellerItemSubscriptionRepositoryFactory {
+struct SellerItemSubscriptionRepositoryFactory: @unchecked Sendable {
     var make: ((Request) -> SellerItemSubscriptionRepository)?
     
     mutating func use(_ make: @escaping ((Request) -> SellerItemSubscriptionRepository)) {

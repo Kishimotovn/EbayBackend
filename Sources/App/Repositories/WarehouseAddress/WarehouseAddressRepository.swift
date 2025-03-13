@@ -43,7 +43,7 @@ struct DatabaseWarehouseAddressRepository: WarehouseAddressRepository {
     }
 }
 
-struct WarehouseAddressRepositoryFactory {
+struct WarehouseAddressRepositoryFactory: @unchecked Sendable {
     var make: ((Request) -> WarehouseAddressRepository)?
     
     mutating func use(_ make: @escaping ((Request) -> WarehouseAddressRepository)) {

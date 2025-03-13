@@ -18,7 +18,7 @@ protocol EbayAPIRepository {
     func checkFurtherDiscountFromWebPage(urlString: String) -> EventLoopFuture<Bool>
 }
 
-class ClientEbayAPIRepository: EbayAPIRepository {
+class ClientEbayAPIRepository: EbayAPIRepository, @unchecked Sendable {
     let application: Application
     let client: Client
     let ebayAppID: String
@@ -474,7 +474,7 @@ extension EbayItemSearchResponse: Equatable {
     }
 }
 
-struct EbayItemSummaryResponse: Content {
+struct EbayItemSummaryResponse: Content, Sendable {
     var itemId: String?
     var title: String?
     var image: EbayGetItemResponse.Image?
@@ -714,7 +714,7 @@ extension EbayGetItemResponse.MarketingPrice {
     }
 }
 
-struct EbayAPIRepositoryFactory {
+struct EbayAPIRepositoryFactory: @unchecked Sendable {
     var make: ((Request) -> EbayAPIRepository)?
     
     mutating func use(_ make: @escaping ((Request) -> EbayAPIRepository)) {

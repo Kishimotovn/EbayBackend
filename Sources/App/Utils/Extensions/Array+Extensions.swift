@@ -42,7 +42,7 @@ extension Array where Element: Hashable {
     }
 }
 
-extension Sequence {
+extension Sequence where Element: Sendable {
     func asyncForEach(
         _ operation: (Element) async throws -> Void
     ) async rethrows {
@@ -76,7 +76,7 @@ extension Sequence {
 
     func concurrentForEach(
         withPriority priority: TaskPriority? = nil,
-        _ operation: @escaping (Element) async throws -> Void
+        _ operation: @Sendable @escaping (Element) async throws -> Void
     ) async throws {
         try await withThrowingTaskGroup(of: Void.self) { group in
             for element in self {
@@ -90,9 +90,9 @@ extension Sequence {
         }
     }
 
-    func concurrentMap<T>(
+    func concurrentMap<T: Sendable>(
         withPriority priority: TaskPriority? = nil,
-        _ transform: @escaping (Element) async throws -> T
+        _ transform: @Sendable @escaping (Element) async throws -> T
     ) async throws -> [T] {
         let tasks = map { element in
             Task(priority: priority) {
@@ -105,9 +105,9 @@ extension Sequence {
         }
     }
     
-    func concurrentCompactMap<T>(
+    func concurrentCompactMap<T: Sendable>(
         withPriority priority: TaskPriority? = nil,
-        _ transform: @escaping (Element) async throws -> T?
+        _ transform: @Sendable @escaping (Element) async throws -> T?
     ) async throws -> [T] {
         let tasks = map { element in
             Task(priority: priority) {
@@ -121,11 +121,11 @@ extension Sequence {
     }
 }
 
-extension Array {
+extension Array where Element: Sendable {
     func chunkedConcurrentForEach(
         chunkSize: Int,
         withPriority priority: TaskPriority? = nil,
-        _ operation: @escaping (Element) async throws -> Void
+        _ operation: @Sendable @escaping (Element) async throws -> Void
     ) async throws {
         if self.isEmpty {
             return
@@ -142,10 +142,10 @@ extension Array {
         try await nextBatch.chunkedConcurrentForEach(chunkSize: chunkSize, withPriority: priority, operation)
     }
 
-    func chunkedConcurrentMap<T>(
+    func chunkedConcurrentMap<T: Sendable>(
         chunkSize: Int,
         withPriority priority: TaskPriority? = nil,
-        _ transform: @escaping (Element) async throws -> T
+        _ transform: @Sendable @escaping (Element) async throws -> T
     ) async throws -> [T] {
         if self.isEmpty {
             return []
@@ -166,10 +166,10 @@ extension Array {
         return chunkResults
     }
     
-    func chunkedConcurrentCompactMap<T>(
+    func chunkedConcurrentCompactMap<T: Sendable>(
         chunkSize: Int,
         withPriority priority: TaskPriority? = nil,
-        _ transform: @escaping (Element) async throws -> T?
+        _ transform: @Sendable @escaping (Element) async throws -> T?
     ) async throws -> [T] {
         if self.isEmpty {
             return []

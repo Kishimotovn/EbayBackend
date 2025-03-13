@@ -96,7 +96,7 @@ struct DatabaseTrackedItemRepository: TrackedItemRepository, DatabaseRepository 
     }
 }
 
-struct TrackedItemRepositoryFactory {
+struct TrackedItemRepositoryFactory: @unchecked Sendable  {
     var make: ((Request) -> (TrackedItemRepository & DatabaseRepository))?
 
     mutating func use(_ make: @escaping ((Request) -> (TrackedItemRepository & DatabaseRepository))) {

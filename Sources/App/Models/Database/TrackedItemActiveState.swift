@@ -2,8 +2,8 @@ import Foundation
 import Vapor
 import FluentKit
 
-final class TrackedItemActiveState: Model {
-    static var schema: String = "tracked_items_active_state"
+final class TrackedItemActiveState: Model, @unchecked Sendable {
+    static let schema: String = "tracked_items_active_state"
     @ID(key: .id)
     var id: UUID?
 

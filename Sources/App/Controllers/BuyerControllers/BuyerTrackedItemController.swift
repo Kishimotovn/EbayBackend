@@ -381,7 +381,7 @@ extension SiblingsProperty {
         _ to: To,
         method: AttachMethod,
         on database: Database,
-        override edit: @escaping (Through) -> () = { _ in }
+        override edit: @Sendable @escaping (Through) -> () = { _ in }
     ) async throws {
         try await self.attachOverride(fromID: fromID, to, method: method, on: database, override: edit).get()
     }
@@ -391,7 +391,7 @@ extension SiblingsProperty {
         _ to: To,
         method: AttachMethod,
         on database: Database,
-        override edit: @escaping (Through) -> () = { _ in }
+        override edit: @Sendable @escaping (Through) -> () = { _ in }
     ) -> EventLoopFuture<Void> {
         switch method {
         case .always:

@@ -2,8 +2,8 @@ import Vapor
 import Fluent
 import Foundation
 
-final class TrackedItem: Model, Content {
-    static var schema: String = "tracked_items"
+final class TrackedItem: Model, @unchecked Sendable, Content {
+    static let schema: String = "tracked_items"
 
     @ID(key: .id)
     var id: UUID?
@@ -53,7 +53,7 @@ final class TrackedItem: Model, Content {
     @Field(key: "state_trails")
     var stateTrails: [StateTrail]
 
-    struct StateTrail: Content {
+    struct StateTrail: Content, @unchecked Sendable {
         var state: State
         @ISO8601DateTime var updatedAt: Date
         var importID: String?

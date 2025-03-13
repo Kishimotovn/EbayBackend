@@ -10,7 +10,7 @@ import Vapor
 import FluentPostgresDriver
 import Fluent
 
-protocol SellerAnalyticsRepository {
+protocol SellerAnalyticsRepository: Sendable {
     func buyerAnalytics(sellerID: Seller.IDValue) -> EventLoopFuture<[BuyerAnalyticsOutput]>
 }
 
@@ -44,7 +44,7 @@ struct DatabaseSellerAnalyticsRepository: SellerAnalyticsRepository {
     }
 }
 
-struct SellerAnalyticsRepositoryFactory {
+struct SellerAnalyticsRepositoryFactory: @unchecked Sendable  {
     var make: ((Request) -> SellerAnalyticsRepository)?
     
     mutating func use(_ make: @escaping ((Request) -> SellerAnalyticsRepository)) {

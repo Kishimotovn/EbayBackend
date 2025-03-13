@@ -1,7 +1,7 @@
 import Foundation
 import Vapor
 
-struct GetTrackedItemByPeriodOutput: Content {
+struct GetTrackedItemByPeriodOutput: Content, @unchecked Sendable {
     @OptionalISO8601Date var fromDate: Date?
     @OptionalISO8601Date var toDate: Date?
     var searchString: String?

@@ -9,7 +9,7 @@ import Foundation
 import Vapor
 import Fluent
 
-final class OrderItem: Model, Content {
+final class OrderItem: Model, @unchecked Sendable, Content {
     static let parameter = "order_item_id"
     static let schema: String = "order_item"
 

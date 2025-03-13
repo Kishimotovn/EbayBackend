@@ -9,8 +9,8 @@ import Foundation
 import Vapor
 import Fluent
 
-final class BuyerResetPasswordToken: Model, Content {
-    static var schema: String = "buyer_reset_password_tokens"
+final class BuyerResetPasswordToken: Model, @unchecked Sendable, Content {
+    static let schema: String = "buyer_reset_password_tokens"
 
     @ID(key: .id)
     var id: UUID?

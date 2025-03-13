@@ -28,7 +28,7 @@ struct DatabaseItemRepository: ItemRepository {
     }
 }
 
-struct ItemRepositoryFactory {
+struct ItemRepositoryFactory: @unchecked Sendable {
     var make: ((Request) -> ItemRepository)?
 
     mutating func use(_ make: @escaping ((Request) -> ItemRepository)) {

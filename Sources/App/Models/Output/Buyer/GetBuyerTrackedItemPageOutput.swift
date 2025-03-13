@@ -1,7 +1,7 @@
 import Vapor
 import Foundation
 
-struct GetBuyerTrackedItemPageOutput: Content {
+struct GetBuyerTrackedItemPageOutput: Content, @unchecked Sendable {
     struct Metadata: Content {
         var page: Int
         var per: Int

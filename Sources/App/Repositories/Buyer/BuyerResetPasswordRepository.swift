@@ -37,7 +37,7 @@ struct DatabaseBuyerResetPasswordTokenRepository: BuyerResetPasswordTokenReposit
     }
 }
 
-struct BuyerResetPasswordTokenRepositoryFactory {
+struct BuyerResetPasswordTokenRepositoryFactory: @unchecked Sendable {
     var make: ((Request) -> BuyerResetPasswordTokenRepository)?
 
     mutating func use(_ make: @escaping ((Request) -> BuyerResetPasswordTokenRepository)) {
