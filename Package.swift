@@ -16,7 +16,7 @@ let package = Package(
         .package(url: "https://github.com/vapor/queues-redis-driver.git", from: "1.0.0"),
         .package(url: "https://github.com/vapor-community/sendgrid.git", from: "4.0.0"),
         .package(url: "https://github.com/onmyway133/DeepDiff.git", .upToNextMajor(from: "2.3.0")),
-            .package(url: "https://github.com/vapor/redis.git", from: "4.0.0"),
+//            .package(url: "https://github.com/vapor/redis.git", from: "4.0.0"),
         .package(url: "https://github.com/dehesa/CodableCSV.git", from: "0.6.7")
 //        .package(url: "https://github.com/swiftcsv/SwiftCSV.git", from: "0.8.0")
     ],
@@ -32,7 +32,7 @@ let package = Package(
                 .product(name: "SwiftSoup", package: "SwiftSoup"),
                 .product(name: "QueuesRedisDriver", package: "queues-redis-driver"),
                 .product(name: "SendGrid", package: "sendgrid"),
-                .product(name: "Redis", package: "redis"),
+//                .product(name: "Redis", package: "redis"),
                 .product(name: "CodableCSV", package: "CodableCSV"),
 //                .product(name: "SwiftCSV", package: "SwiftCSV")
             ],
