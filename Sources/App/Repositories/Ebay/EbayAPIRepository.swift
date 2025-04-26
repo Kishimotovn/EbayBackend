@@ -18,6 +18,10 @@ protocol EbayAPIRepository {
     func checkFurtherDiscountFromWebPage(urlString: String) -> EventLoopFuture<Bool>
 }
 
+enum EbayError: Error {
+    case apiResponseError(code: Int, body: String)
+}
+
 class ClientEbayAPIRepository: EbayAPIRepository, @unchecked Sendable {
     let application: Application
     let client: Client
@@ -112,7 +116,7 @@ class ClientEbayAPIRepository: EbayAPIRepository, @unchecked Sendable {
                 let url = URI(
                     scheme: "https",
                     host: "api.ebay.com",
-                    path: "buy/browse/v1/item/\(ebayItemID.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)!)")
+                    path: "buy/browse/v1/item/\(ebayItemID)")
                 return self.client.get(
                     url,
                     headers: [
@@ -123,7 +127,10 @@ class ClientEbayAPIRepository: EbayAPIRepository, @unchecked Sendable {
                 ])
             }
         .tryFlatMap { response throws -> EventLoopFuture<EbayAPIItemOutput> in
-            let item = try response.content.decode(EbayGetItemResponse.self)
+            guard response.status.code == HTTPResponseStatus.ok.code else {
+                throw EbayError.apiResponseError(code: Int(response.status.code),  body: response.body != nil ? String.init(buffer: response.body!) :  "")
+            }
+            let item = try response.content.decode(EbayGetItemResponse.self, as: .json)
             let shippingPrice = item.shippingOptions.first?.shippingCost?.value?.currencyValue() ?? 0.0
 
             let normalizedShippingPrice = Int(truncating: (shippingPrice * 100) as NSNumber)
